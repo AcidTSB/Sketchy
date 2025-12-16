@@ -1,0 +1,12 @@
+packages:
+  - electron
+  - renderer
+  - studio-share-viewer
+
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - bcrypt
+  - electron
+  - esbuild
+  - prisma

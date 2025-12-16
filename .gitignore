@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+out/
+*.tsbuildinfo
+
+# Database
+prisma/*.db
+prisma/*.db-journal
+prisma/migrations/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Test
+coverage/
+.nyc_output/
+
+# Electron
+electron/dist/
+renderer/dist/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Reports
+report/
+reports/
+
+# Docs
+docs

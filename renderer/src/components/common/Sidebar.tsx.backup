@@ -1,0 +1,598 @@
+﻿import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import {
+  Music,
+  Plus,
+  ChevronRight,
+  ChevronDown,
+  Home,
+  BarChart3,
+  PanelLeftClose,
+  PanelLeft,
+  FileAudio,
+  Mic,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useProjectStore } from '@/store/projectStore'
+import { cn } from '@/lib/utils'
+import { useClickOutside } from '@/hooks/useClickOutside'
+import { useToast } from '@/components/Toast'
+
+export function Sidebar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { getProjectTracks, projects, currentProject } = useProjectStore()
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [showAddMenu, setShowAddMenu] = useState(false)
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
+  const addMenuRef = useRef<HTMLDivElement>(null)
+  const addButtonRef = useRef<HTMLButtonElement>(null)
+  const toast = useToast()
+
+  // Update menu position when button is clicked
+  useEffect(() => {
+    if (showAddMenu && addButtonRef.current) {
+      const rect = addButtonRef.current.getBoundingClientRect()
+      setMenuPosition({
+        top: rect.top,
+        left: rect.right + 8,
+      })
+    }
+  }, [showAddMenu])
+
+  // Close add menu when clicking outside
+  useClickOutside(addMenuRef, () => {
+    if (showAddMenu) setShowAddMenu(false)
+  })
+
+  const handleAddAction = (action: string) => {
+    setShowAddMenu(false)
+    switch (action) {
+      case 'audio':
+        if (location.pathname !== '/') {
+          navigate('/', { state: { openImportModal: true } })
+        } else {
+          window.dispatchEvent(new CustomEvent('openImportModal'))
+        }
+        break
+      case 'record':
+        if (currentProject) {
+          navigate(`/record/${currentProject.id}`)
+        } else {
+          toast.info('Please select or create a project first')
+        }
+        break
+      case 'project':
+        window.dispatchEvent(new CustomEvent('openNewProjectModal'))
+        break
+    }
+  }
+
+  const toggleProject = (projectId: string) => {
+    const newExpanded = new Set(expandedProjects)
+    if (newExpanded.has(projectId)) {
+      newExpanded.delete(projectId)
+    } else {
+      newExpanded.add(projectId)
+    }
+    setExpandedProjects(newExpanded)
+  }
+
+  return (
+    <aside
+      // 👇 SỬA: Đổi h-screen thành h-full vì nó nằm trong grid container
+      className={cn(
+        'flex flex-col h-full glass transition-all duration-300',
+        isCollapsed ? 'w-20' : 'w-64'
+      )}
+      style={{
+        borderRight: '1px solid var(--systemQuaternary)',
+        // background: 'var(--bg)', // Có thể bật cái này nếu muốn sidebar tối hơn header
+      }}
+    >
+      {/* Header của Sidebar (Logo + Nút collapse) */}
+      <div
+        className="flex items-center justify-between"
+        style={{
+          padding: 'var(--space-4) var(--space-5)', // 👇 SỬA: Bỏ paddingTop 48px
+          height: '64px', // Chiều cao cố định cho header của sidebar
+          borderBottom: '1px solid var(--systemQuaternary)',
+        }}
+      >
+        {!isCollapsed && (
+          <h1 className="text-title-3 font-semibold" style={{ color: 'var(--text)' }}>
+            Library
+          </h1>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn('h-8 w-8 rounded-apple-sm', isCollapsed ? 'mx-auto' : 'ml-auto')}
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? (
+            <PanelLeft className="h-5 w-5" style={{ color: 'var(--systemSecondary)' }} />
+          ) : (
+            <PanelLeftClose className="h-5 w-5" style={{ color: 'var(--systemSecondary)' }} />
+          )}
+        </Button>
+      </div>
+
+      {/* Main Navigation */}
+      <nav
+        className="flex-1 overflow-y-auto custom-scrollbar"
+        style={{ padding: 'var(--space-4) var(--space-3)' }}
+      >
+        {/* Home & Insights - Always visible */}
+        <div style={{ marginBottom: 'var(--space-2)' }}>
+          <Button
+            variant="ghost"
+            className={cn(
+              'w-full rounded-apple transition-apple',
+              isCollapsed ? 'justify-center px-0' : 'justify-start',
+              location.pathname === '/' && 'bg-[var(--systemQuaternary)]'
+            )}
+            style={{
+              gap: 'var(--space-4)',
+              padding: isCollapsed ? 'var(--space-3)' : 'var(--space-3) var(--space-4)',
+              color: 'var(--text)',
+            }}
+            onClick={() => navigate('/')}
+            title="Home"
+          >
+            <Home
+              className="h-5 w-5"
+              style={{
+                color: location.pathname === '/' ? 'var(--keyColor)' : 'var(--systemSecondary)',
+              }}
+            />
+            {!isCollapsed && <span className="text-body font-medium">Home</span>}
+          </Button>
+        </div>
+
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <Button
+            variant="ghost"
+            className={cn(
+              'w-full rounded-apple transition-apple',
+              isCollapsed ? 'justify-center px-0' : 'justify-start',
+              location.pathname === '/insights' && 'bg-[var(--systemQuaternary)]'
+            )}
+            style={{
+              gap: 'var(--space-4)',
+              padding: isCollapsed ? 'var(--space-3)' : 'var(--space-3) var(--space-4)',
+              color: 'var(--text)',
+            }}
+            onClick={() => navigate('/insights')}
+            title="Insights"
+          >
+            <BarChart3
+              className="h-5 w-5"
+              style={{
+                color:
+                  location.pathname === '/insights' ? 'var(--keyColor)' : 'var(--systemSecondary)',
+              }}
+            />
+            {!isCollapsed && <span className="text-body font-medium">Insights</span>}
+          </Button>
+        </div>
+
+        {/* Projects Section Header - Only when expanded */}
+        {!isCollapsed && (
+          <div
+            className="flex items-center justify-between"
+            style={{
+              padding: '0 var(--space-4)',
+              marginBottom: 'var(--space-2)',
+            }}
+          >
+            <span
+              className="text-caption font-semibold uppercase tracking-wider"
+              style={{ color: 'var(--systemTertiary)' }}
+            >
+              Projects
+            </span>
+            <div className="relative">
+              <Button
+                ref={addButtonRef}
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-apple-sm hover:bg-[var(--systemQuaternary)] transition-apple"
+                onClick={() => setShowAddMenu(!showAddMenu)}
+                title="Add new"
+              >
+                <Plus className="h-4 w-4" style={{ color: 'var(--systemSecondary)' }} />
+              </Button>
+
+              {/* Add Menu Dropdown - Portal */}
+              {showAddMenu &&
+                createPortal(
+                  <div
+                    ref={addMenuRef}
+                    className="fixed z-[9999] rounded-apple shadow-apple-lg overflow-hidden animate-scale-in"
+                    style={{
+                      top: menuPosition.top,
+                      left: menuPosition.left,
+                      width: '180px',
+                      backgroundColor: '#1e1e1e',
+                      border: '1px solid var(--systemQuaternary)',
+                    }}
+                  >
+                    <button
+                      onClick={() => handleAddAction('audio')}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[var(--systemQuaternary)] transition-colors text-left border-b border-[var(--systemQuaternary)]"
+                    >
+                      <FileAudio className="h-4 w-4 text-[var(--keyColor)]" />
+                      <span className="text-sm text-[var(--text)]">Import Audio</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddAction('record')}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[var(--systemQuaternary)] transition-colors text-left border-b border-[var(--systemQuaternary)]"
+                    >
+                      <Mic className="h-4 w-4 text-red-500" />
+                      <span className="text-sm text-[var(--text)]">Record</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddAction('folder')}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[var(--systemQuaternary)] transition-colors text-left border-b border-[var(--systemQuaternary)]"
+                    >
+                      <FolderPlus className="h-4 w-4 text-[var(--systemSecondary)]" />
+                      <span className="text-sm text-[var(--text)]">New Folder</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddAction('project')}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[var(--systemQuaternary)] transition-colors text-left"
+                    >
+                      <Music className="h-4 w-4 text-[var(--systemSecondary)]" />
+                      <span className="text-sm text-[var(--text)]">New Project</span>
+                    </button>
+                  </div>,
+                  document.body
+                )}
+            </div>
+          </div>
+        )}
+
+        {/* Projects List */}
+        <div className={cn('flex flex-col', isCollapsed ? 'gap-2 items-center' : 'gap-0.5')}>
+          {/* When collapsed: Show Add button + project avatars */}
+          {isCollapsed ? (
+            <>
+              {/* Add Button */}
+              <Button
+                ref={addButtonRef}
+                variant="ghost"
+                size="icon"
+                className="w-12 h-12 rounded-apple hover:bg-[var(--systemQuaternary)] transition-apple"
+                onClick={() => setShowAddMenu(!showAddMenu)}
+                title="Add new"
+              >
+                <Plus className="h-5 w-5" style={{ color: 'var(--systemSecondary)' }} />
+              </Button>
+
+              {/* Add Menu Dropdown - Portal (same for collapsed) */}
+              {showAddMenu &&
+                createPortal(
+                  <div
+                    ref={addMenuRef}
+                    className="fixed z-[9999] rounded-apple shadow-apple-lg overflow-hidden animate-scale-in"
+                    style={{
+                      top: menuPosition.top,
+                      left: menuPosition.left,
+                      width: '180px',
+                      backgroundColor: '#1e1e1e',
+                      border: '1px solid var(--systemQuaternary)',
+                    }}
+                  >
+                    <button
+                      onClick={() => handleAddAction('audio')}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[var(--systemQuaternary)] transition-colors text-left border-b border-[var(--systemQuaternary)]"
+                    >
+                      <FileAudio className="h-4 w-4 text-[var(--keyColor)]" />
+                      <span className="text-sm text-[var(--text)]">Import Audio</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddAction('record')}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[var(--systemQuaternary)] transition-colors text-left border-b border-[var(--systemQuaternary)]"
+                    >
+                      <Mic className="h-4 w-4 text-red-500" />
+                      <span className="text-sm text-[var(--text)]">Record</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddAction('folder')}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[var(--systemQuaternary)] transition-colors text-left border-b border-[var(--systemQuaternary)]"
+                    >
+                      <FolderPlus className="h-4 w-4 text-[var(--systemSecondary)]" />
+                      <span className="text-sm text-[var(--text)]">New Folder</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddAction('project')}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[var(--systemQuaternary)] transition-colors text-left"
+                    >
+                      <Music className="h-4 w-4 text-[var(--systemSecondary)]" />
+                      <span className="text-sm text-[var(--text)]">New Project</span>
+                    </button>
+                  </div>,
+                  document.body
+                )}
+
+              {/* Root Projects - Avatar only */}
+              {rootProjects.map((project) => {
+                const isActive = location.pathname.includes(`/project/${project.id}`)
+                const isCoverArtUrl =
+                  project.coverArt &&
+                  (project.coverArt.startsWith('http') ||
+                    project.coverArt.startsWith('/') ||
+                    project.coverArt.startsWith('data:image'))
+
+                return (
+                  <button
+                    key={project.id}
+                    onClick={() => navigate(`/project/${project.id}`)}
+                    className={cn(
+                      'w-12 h-12 rounded-apple overflow-hidden transition-all hover:scale-105',
+                      isActive && 'ring-2 ring-[var(--keyColor)]'
+                    )}
+                    title={project.title}
+                  >
+                    {isCoverArtUrl ? (
+                      <img
+                        src={project.coverArt}
+                        alt={project.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="w-full h-full flex items-center justify-center text-white font-semibold text-sm"
+                        style={{
+                          background:
+                            project.coverArt || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        }}
+                      >
+                        {project.title.substring(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+
+              {/* Folders - Show folder icon with count */}
+              {folders.map((folder) => {
+                const folderProjects = getFolderProjects(folder.id)
+                return folderProjects.map((project) => {
+                  const isActive = location.pathname.includes(`/project/${project.id}`)
+                  const isCoverArtUrl =
+                    project.coverArt &&
+                    (project.coverArt.startsWith('http') ||
+                      project.coverArt.startsWith('/') ||
+                      project.coverArt.startsWith('data:image'))
+
+                  return (
+                    <button
+                      key={project.id}
+                      onClick={() => navigate(`/project/${project.id}`)}
+                      className={cn(
+                        'w-12 h-12 rounded-apple overflow-hidden transition-all hover:scale-105',
+                        isActive && 'ring-2 ring-[var(--keyColor)]'
+                      )}
+                      title={`${folder.title} - ${project.title}`}
+                    >
+                      {isCoverArtUrl ? (
+                        <img
+                          src={project.coverArt}
+                          alt={project.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          className="w-full h-full flex items-center justify-center text-white font-semibold text-sm"
+                          style={{
+                            background:
+                              project.coverArt ||
+                              'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          }}
+                        >
+                          {project.title.substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                    </button>
+                  )
+                })
+              })}
+            </>
+          ) : (
+            <>
+              {/* When expanded: Show full tree view */}
+              {/* Folders */}
+              {folders.map((folder) => {
+                const isExpanded = expandedFolders.has(folder.id)
+                const folderProjects = getFolderProjects(folder.id)
+                return (
+                  <div key={folder.id}>
+                    <button
+                      onClick={() => toggleFolder(folder.id)}
+                      className="w-full flex items-center rounded-md hover:bg-[var(--systemQuaternary)] transition-colors text-left group"
+                      style={{ padding: '6px 12px', gap: '8px' }}
+                    >
+                      <span className="text-[var(--systemTertiary)] group-hover:text-[var(--text)]">
+                        {isExpanded ? (
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        )}
+                      </span>
+                      <FolderIcon className="h-4 w-4 text-[var(--systemSecondary)] group-hover:text-[var(--text)]" />
+                      <span className="flex-1 text-sm text-[var(--text)] truncate">
+                        {folder.title}
+                      </span>
+                      <span className="text-xs text-[var(--systemTertiary)]">
+                        {folder.projectCount}
+                      </span>
+                    </button>
+                    {isExpanded && (
+                      <div className="ml-3 pl-3 border-l border-[var(--systemQuaternary)] mt-1 mb-1">
+                        {folderProjects.map((project) => {
+                          const isProjectExpanded = expandedProjects.has(project.id)
+                          const tracks = getProjectTracks(project.id)
+                          const isCoverArtUrl =
+                            project.coverArt &&
+                            (project.coverArt.startsWith('http') ||
+                              project.coverArt.startsWith('/') ||
+                              project.coverArt.startsWith('data:image'))
+
+                          return (
+                            <div key={project.id}>
+                              <button
+                                onClick={() => navigate(`/project/${project.id}`)}
+                                className="w-full flex items-center rounded-md hover:bg-[var(--systemQuaternary)] transition-colors text-left py-1.5 px-2 gap-2 group"
+                              >
+                                {/* Project Avatar */}
+                                <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0">
+                                  {isCoverArtUrl ? (
+                                    <img
+                                      src={project.coverArt}
+                                      alt={project.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div
+                                      className="w-full h-full flex items-center justify-center text-white font-semibold text-xs"
+                                      style={{
+                                        background:
+                                          project.coverArt ||
+                                          'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                      }}
+                                    >
+                                      {project.title.substring(0, 2).toUpperCase()}
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-sm text-[var(--text)] truncate flex-1">
+                                  {project.title}
+                                </span>
+                                <div
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleProject(project.id)
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                >
+                                  {isProjectExpanded ? (
+                                    <ChevronDown className="h-3 w-3 text-[var(--systemTertiary)]" />
+                                  ) : (
+                                    <ChevronRight className="h-3 w-3 text-[var(--systemTertiary)]" />
+                                  )}
+                                </div>
+                              </button>
+                              {isProjectExpanded && tracks.length > 0 && (
+                                <div className="ml-10 mt-1 space-y-0.5">
+                                  {tracks.map((track) => (
+                                    <button
+                                      key={track.id}
+                                      onClick={() => navigate(`/player/${track.id}`)}
+                                      className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-[var(--systemQuaternary)] text-left"
+                                    >
+                                      <Music className="h-3.5 w-3.5 text-[var(--keyColor)]" />
+                                      <span className="text-sm text-[var(--text-secondary)] hover:text-[var(--text)] truncate">
+                                        {track.title}
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Root Projects */}
+              {rootProjects.map((project) => {
+                const isProjectExpanded = expandedProjects.has(project.id)
+                const tracks = getProjectTracks(project.id)
+                const isCoverArtUrl =
+                  project.coverArt &&
+                  (project.coverArt.startsWith('http') ||
+                    project.coverArt.startsWith('/') ||
+                    project.coverArt.startsWith('data:image'))
+
+                return (
+                  <div key={project.id}>
+                    <button
+                      onClick={() => navigate(`/project/${project.id}`)}
+                      className="w-full flex items-center rounded-md hover:bg-[var(--systemQuaternary)] transition-colors text-left group"
+                      style={{ padding: '6px 12px', gap: '8px' }}
+                    >
+                      {/* Project Avatar */}
+                      <div className="w-10 h-10 rounded-md overflow-hidden flex-shrink-0">
+                        {isCoverArtUrl ? (
+                          <img
+                            src={project.coverArt}
+                            alt={project.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full flex items-center justify-center text-white font-semibold text-sm"
+                            style={{
+                              background:
+                                project.coverArt ||
+                                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            }}
+                          >
+                            {project.title.substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <span className="flex-1 text-sm text-[var(--text)] truncate">
+                        {project.title}
+                      </span>
+                      <span className="text-xs text-[var(--systemTertiary)]">
+                        {project.trackCount}
+                      </span>
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleProject(project.id)
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      >
+                        {isProjectExpanded ? (
+                          <ChevronDown className="h-3.5 w-3.5 text-[var(--systemTertiary)]" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 text-[var(--systemTertiary)]" />
+                        )}
+                      </div>
+                    </button>
+                    {isProjectExpanded && tracks.length > 0 && (
+                      <div className="ml-14 mt-1 space-y-0.5">
+                        {tracks.map((track) => (
+                          <button
+                            key={track.id}
+                            onClick={() => navigate(`/player/${track.id}`)}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-[var(--systemQuaternary)] text-left"
+                          >
+                            <Music className="h-3.5 w-3.5 text-[var(--keyColor)]" />
+                            <span className="text-sm text-[var(--text-secondary)] hover:text-[var(--text)] truncate">
+                              {track.title}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </>
+          )}
+        </div>
+      </nav>
+    </aside>
+  )
+}
