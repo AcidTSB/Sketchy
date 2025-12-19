@@ -53,7 +53,7 @@ const activeBatches = new Map<string, { cancelled: boolean }>()
 
 export function registerBatchHandlers(mainWindow: BrowserWindow) {
   const getAppDataPath = () => {
-    return path.join(app.getPath('appData'), 'AudioProjectManager')
+    return path.join(app.getPath('appData'), 'Sketchy')
   }
 
   /**

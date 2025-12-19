@@ -137,7 +137,8 @@ export const useShareStore = create<ShareState>((set) => ({
         return data
       } else {
         // Check if password is required
-        if (result.needsPassword) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((result as any).needsPassword) {
           set({ error: 'Password required', loading: false })
         } else {
           set({ error: error || 'Failed to get shared content', loading: false })

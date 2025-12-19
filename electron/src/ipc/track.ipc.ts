@@ -343,7 +343,7 @@ export function registerTrackHandlers() {
       const appDataRoot = app.getPath('appData')
       const tempStemsDir = path.join(
         appDataRoot,
-        'AudioProjectManager',
+        'Sketchy',
         'projects',
         parentTrack.projectId.toString(),
         'temp-stems',
@@ -405,7 +405,7 @@ export function registerTrackHandlers() {
       const appDataDir = app.getPath('appData')
       const storageDir = path.join(
         appDataDir,
-        'AudioProjectManager',
+        'Sketchy',
         'projects',
         String(projectId),
         'recordings'

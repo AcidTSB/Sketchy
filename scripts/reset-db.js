@@ -30,7 +30,7 @@ const appDataPath =
   (process.platform === 'darwin'
     ? path.join(process.env.HOME, 'Library/Application Support')
     : process.env.HOME)
-const appName = 'AudioProjectManager'
+const appName = 'Sketchy'
 const electronDataPath = path.join(appDataPath, appName)
 
 if (fs.existsSync(electronDataPath)) {

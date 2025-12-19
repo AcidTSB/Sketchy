@@ -9,7 +9,8 @@ export function Record() {
   const navigate = useNavigate()
   const { loadProject, addTrackFromBackend } = useProjectStore()
 
-  const handleSave = async (result?: { data?: unknown }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleSave = async (result?: any) => {
     // Add track to store immediately to show in UI
     if (projectId && result?.data) {
       // Add the new track to store first

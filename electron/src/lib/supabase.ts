@@ -1,5 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
+import { app } from 'electron'
+import path from 'path'
+import dotenv from 'dotenv'
 import { log } from '../utils/logger'
+
+const isPackaged = app.isPackaged
+
+const envPath = isPackaged
+  ? path.join(process.resourcesPath, '.env') // Bản Prod: Đọc file .env nằm cạnh file .exe
+  : path.join(__dirname, '../../.env') // Bản Dev: Đọc file .env ở thư mục gốc
+
+dotenv.config({ path: envPath })
+// ---------------------------------------------------
 
 // Supabase configuration
 const SUPABASE_URL = process.env.SUPABASE_URL || ''
@@ -7,10 +19,10 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || ''
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
   log.warn('Supabase credentials not configured. Share feature will not work.')
+  log.warn(`Looking for .env at: ${envPath}`) // Log thêm đường dẫn để dễ debug
 }
 
 // Create Supabase client with service role key
-// This allows the Electron app to bypass RLS policies for administrative operations
 export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: {
     autoRefreshToken: false,
@@ -23,10 +35,6 @@ export const AUDIO_SHARES_BUCKET = 'sketchy-audio-shares'
 
 /**
  * Upload a file to Supabase Storage
- * @param filePath - Local file path to upload
- * @param fileName - Destination file name in storage (e.g., "token/track.mp3")
- * @param contentType - MIME type of the file
- * @returns Public URL of the uploaded file
  */
 export async function uploadAudioFile(
   fileBuffer: Buffer,
@@ -35,7 +43,7 @@ export async function uploadAudioFile(
 ): Promise<string> {
   const { error } = await supabase.storage.from(AUDIO_SHARES_BUCKET).upload(fileName, fileBuffer, {
     contentType,
-    upsert: false, // Don't overwrite if exists
+    upsert: false,
   })
 
   if (error) {
@@ -43,7 +51,6 @@ export async function uploadAudioFile(
     throw new Error(`Upload failed: ${error.message}`)
   }
 
-  // Get public URL
   const {
     data: { publicUrl },
   } = supabase.storage.from(AUDIO_SHARES_BUCKET).getPublicUrl(fileName)
@@ -54,7 +61,6 @@ export async function uploadAudioFile(
 
 /**
  * Delete a file from Supabase Storage
- * @param fileName - File name to delete
  */
 export async function deleteAudioFile(fileName: string): Promise<void> {
   const { error } = await supabase.storage.from(AUDIO_SHARES_BUCKET).remove([fileName])

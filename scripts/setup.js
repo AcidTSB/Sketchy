@@ -4,7 +4,7 @@ const { execSync } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 
-console.log('🚀 Audio Project Manager - First Time Setup\n')
+console.log('🚀 Sketchy - First Time Setup\n')
 
 // Check Node.js version
 const nodeVersion = process.version

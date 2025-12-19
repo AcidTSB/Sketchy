@@ -30,19 +30,11 @@ function getBrowserWindowOptions(): Electron.BrowserWindowConstructorOptions {
   const isMac = process.platform === 'darwin'
   const isWindows = process.platform === 'win32'
 
-  const candidates = [
-    path.join(__dirname, 'preload.js'),
-    path.join(app.getAppPath(), 'electron', 'dist', 'preload.js'),
-    path.resolve(process.cwd(), 'electron', 'dist', 'preload.js'),
-  ]
-  const preloadPath =
-    candidates.find((p) => {
-      try {
-        return fs.existsSync(p)
-      } catch {
-        return false
-      }
-    }) || path.join(__dirname, 'preload.js')
+  const preloadPath = app.isPackaged
+    ? path.join(__dirname, 'preload.js') // Khi build, preload.js thường nằm cùng cấp với main.js
+    : path.join(__dirname, '../../electron/dist/preload.js') // Đường dẫn khi dev (tuỳ cấu trúc của bạn)
+
+  console.log('[main] Preload path:', preloadPath)
 
   const baseOptions: Electron.BrowserWindowConstructorOptions = {
     width: 1200,
@@ -106,15 +98,21 @@ function createWindow() {
     }
   })
 
-  if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
+  // 🔥 SỬA ĐOẠN NÀY: Bỏ kiểm tra NODE_ENV, chỉ dựa vào app.isPackaged 🔥
+  if (!app.isPackaged) {
     const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173'
     mainWindow.loadURL(devServerUrl).catch((err) => {
       console.error('[main] ❌ loadURL failed:', err)
     })
     mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../../renderer/dist/index.html'))
+    // Production Mode
+    const indexPath = path.join(app.getAppPath(), 'renderer/dist/index.html')
+    mainWindow.loadFile(indexPath).catch((e) => {
+      console.error('[main] ❌ Failed to load index.html:', e)
+    })
   }
+  // ------------------------------------------------------------------
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -152,18 +150,14 @@ function createMediaServer() {
         req.on('data', (chunk) => {
           body += chunk.toString()
         })
-
         req.on('end', async () => {
           try {
             const { email, code } = JSON.parse(body)
-
             if (!email || !code) {
               res.writeHead(400, headers)
               res.end(JSON.stringify({ success: false, error: 'Email and code are required' }))
               return
             }
-
-            // Find user with matching email and verification code
             const user = await prisma.userProfile.findFirst({
               where: {
                 email: email,
@@ -171,7 +165,6 @@ function createMediaServer() {
                 verificationTokenExpiry: { gt: new Date() },
               },
             })
-
             if (!user) {
               res.writeHead(400, headers)
               res.end(
@@ -179,17 +172,10 @@ function createMediaServer() {
               )
               return
             }
-
-            // Mark as verified
             await prisma.userProfile.update({
               where: { id: user.id },
-              data: {
-                emailVerified: true,
-                verificationToken: null,
-                verificationTokenExpiry: null,
-              },
+              data: { emailVerified: true, verificationToken: null, verificationTokenExpiry: null },
             })
-
             res.writeHead(200, headers)
             res.end(JSON.stringify({ success: true, message: 'Email verified successfully!' }))
           } catch (e) {
@@ -200,139 +186,32 @@ function createMediaServer() {
         return
       }
 
-      // Email verification endpoint (GET - legacy link-based verification)
+      // Email verification endpoint
       if (url.pathname === '/api/verify-email') {
         const token = url.searchParams.get('token')
-
         if (!token) {
           res.writeHead(400, { 'Content-Type': 'text/html', 'Access-Control-Allow-Origin': '*' })
-          res.end(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="UTF-8">
-              <title>Verification Failed</title>
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-                       display: flex; align-items: center; justify-content: center; 
-                       min-height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-                .card { background: white; padding: 2rem; border-radius: 1rem; text-align: center; max-width: 400px; }
-                h1 { color: #e53e3e; margin-bottom: 1rem; }
-                p { color: #4a5568; }
-              </style>
-            </head>
-            <body>
-              <div class="card">
-                <h1>❌ Verification Failed</h1>
-                <p>Invalid verification link. Token is missing.</p>
-              </div>
-            </body>
-            </html>
-          `)
+          res.end(`<html><body><h1>❌ Verification Failed</h1><p>Token missing.</p></body></html>`)
           return
         }
-
-        // Find user with matching token
         const user = await prisma.userProfile.findFirst({
-          where: {
-            verificationToken: token,
-            verificationTokenExpiry: { gt: new Date() },
-          },
+          where: { verificationToken: token, verificationTokenExpiry: { gt: new Date() } },
         })
-
         if (!user) {
           res.writeHead(400, { 'Content-Type': 'text/html', 'Access-Control-Allow-Origin': '*' })
-          res.end(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="UTF-8">
-              <title>Verification Failed</title>
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-                       display: flex; align-items: center; justify-content: center; 
-                       min-height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-                .card { background: white; padding: 2rem; border-radius: 1rem; text-align: center; max-width: 400px; }
-                h1 { color: #e53e3e; margin-bottom: 1rem; }
-                p { color: #4a5568; }
-              </style>
-            </head>
-            <body>
-              <div class="card">
-                <h1>❌ Verification Failed</h1>
-                <p>Invalid or expired verification link.</p>
-              </div>
-            </body>
-            </html>
-          `)
+          res.end(
+            `<html><body><h1>❌ Verification Failed</h1><p>Invalid or expired link.</p></body></html>`
+          )
           return
         }
-
-        // Update user: mark as verified and remove token
         await prisma.userProfile.update({
           where: { id: user.id },
-          data: {
-            emailVerified: true,
-            verificationToken: null,
-            verificationTokenExpiry: null,
-          },
+          data: { emailVerified: true, verificationToken: null, verificationTokenExpiry: null },
         })
-
         res.writeHead(200, { 'Content-Type': 'text/html', 'Access-Control-Allow-Origin': '*' })
-        res.end(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="UTF-8">
-            <title>Email Verified!</title>
-            <style>
-              body { 
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-                display: flex; align-items: center; justify-content: center; 
-                min-height: 100vh; margin: 0; 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-              }
-              .card { 
-                background: white; padding: 2rem; border-radius: 1rem; 
-                text-align: center; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-              }
-              h1 { color: #38a169; margin-bottom: 1rem; font-size: 1.5rem; }
-              p { color: #4a5568; margin-bottom: 1.5rem; }
-              .success-icon { font-size: 4rem; margin-bottom: 1rem; }
-            </style>
-          </head>
-          <body>
-            <div class="card">
-              <div class="success-icon">✅</div>
-              <h1>Email Verified Successfully!</h1>
-              <p>Your email has been verified. You can now close this tab and return to the app.</p>
-              <p style="font-size: 0.875rem; color: #718096;">This window will close automatically in <span id="countdown">3</span> seconds...</p>
-            </div>
-            <script>
-              let seconds = 3;
-              const countdownEl = document.getElementById('countdown');
-              const interval = setInterval(() => {
-                seconds--;
-                if (countdownEl) countdownEl.textContent = seconds;
-                if (seconds <= 0) {
-                  clearInterval(interval);
-                  window.close();
-                  // If window.close() doesn't work (some browsers block it), show a message
-                  setTimeout(() => {
-                    document.body.innerHTML = \`
-                      <div class="card">
-                        <div class="success-icon">✅</div>
-                        <h1>Email Verified!</h1>
-                        <p>You can now close this tab and return to the app.</p>
-                      </div>
-                    \`;
-                  }, 100);
-                }
-              }, 1000);
-            </script>
-          </body>
-          </html>
-        `)
+        res.end(
+          `<html><body><h1>✅ Email Verified Successfully!</h1><p>You can close this tab.</p></body></html>`
+        )
         return
       }
 
@@ -345,195 +224,57 @@ function createMediaServer() {
         req.on('end', async () => {
           try {
             const { token, newPassword } = JSON.parse(body)
-
             if (!token || !newPassword) {
               res.writeHead(400, { 'Content-Type': 'text/html' })
-              res.end(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                  <meta charset="UTF-8">
-                  <title>Reset Failed</title>
-                  <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-                           display: flex; align-items: center; justify-content: center; 
-                           min-height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-                    .card { background: white; padding: 2rem; border-radius: 1rem; text-align: center; max-width: 400px; }
-                    h1 { color: #e53e3e; margin-bottom: 1rem; }
-                    p { color: #4a5568; }
-                  </style>
-                </head>
-                <body>
-                  <div class="card">
-                    <h1>❌ Reset Failed</h1>
-                    <p>Missing token or password.</p>
-                  </div>
-                </body>
-                </html>
-              `)
+              res.end('Missing data')
               return
             }
-
             const user = await prisma.userProfile.findFirst({
-              where: {
-                resetToken: token,
-                resetTokenExpiry: { gt: new Date() },
-              },
+              where: { resetToken: token, resetTokenExpiry: { gt: new Date() } },
             })
-
             if (!user) {
               res.writeHead(400, { 'Content-Type': 'text/html' })
-              res.end(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                  <meta charset="UTF-8">
-                  <title>Reset Failed</title>
-                  <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-                           display: flex; align-items: center; justify-content: center; 
-                           min-height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-                    .card { background: white; padding: 2rem; border-radius: 1rem; text-align: center; max-width: 400px; }
-                    h1 { color: #e53e3e; margin-bottom: 1rem; }
-                    p { color: #4a5568; }
-                  </style>
-                </head>
-                <body>
-                  <div class="card">
-                    <h1>❌ Reset Failed</h1>
-                    <p>Invalid or expired reset link.</p>
-                  </div>
-                </body>
-                </html>
-              `)
+              res.end('Invalid token')
               return
             }
-
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            const bcrypt = require('bcrypt')
+            const bcrypt = require('bcryptjs')
             const hashedPassword = await bcrypt.hash(newPassword, 10)
-
             await prisma.userProfile.update({
               where: { id: user.id },
-              data: {
-                password: hashedPassword,
-                resetToken: null,
-                resetTokenExpiry: null,
-              },
+              data: { password: hashedPassword, resetToken: null, resetTokenExpiry: null },
             })
-
             res.writeHead(200, { 'Content-Type': 'text/html' })
-            res.end(`
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta charset="UTF-8">
-                <title>Password Reset Successful!</title>
-                <style>
-                  body { 
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-                    display: flex; align-items: center; justify-content: center; 
-                    min-height: 100vh; margin: 0; 
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                  }
-                  .card { 
-                    background: white; padding: 2rem; border-radius: 1rem; 
-                    text-align: center; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-                  }
-                  h1 { color: #38a169; margin-bottom: 1rem; font-size: 1.5rem; }
-                  p { color: #4a5568; margin-bottom: 1.5rem; }
-                  .success-icon { font-size: 4rem; margin-bottom: 1rem; }
-                </style>
-              </head>
-              <body>
-                <div class="card">
-                  <div class="success-icon">✅</div>
-                  <h1>Password Reset Successfully!</h1>
-                  <p>Your password has been changed. You can now close this tab and login with your new password.</p>
-                  <p style="font-size: 0.875rem; color: #718096;">This window will close automatically in <span id="countdown">3</span> seconds...</p>
-                </div>
-                <script>
-                  let seconds = 3;
-                  const countdownEl = document.getElementById('countdown');
-                  const interval = setInterval(() => {
-                    seconds--;
-                    if (countdownEl) countdownEl.textContent = seconds;
-                    if (seconds <= 0) {
-                      clearInterval(interval);
-                      window.close();
-                      setTimeout(() => {
-                        document.body.innerHTML = \\\`
-                          <div class="card">
-                            <div class="success-icon">✅</div>
-                            <h1>Password Reset!</h1>
-                            <p>You can now close this tab and login with your new password.</p>
-                          </div>
-                        \\\`;
-                      }, 100);
-                    }
-                  }, 1000);
-                </script>
-              </body>
-              </html>
-            `)
+            res.end('Password Reset Successful')
           } catch (error) {
             res.writeHead(500, { 'Content-Type': 'text/html' })
-            res.end(`
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta charset="UTF-8">
-                <title>Server Error</title>
-                <style>
-                  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-                         display: flex; align-items: center; justify-content: center; 
-                         min-height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-                  .card { background: white; padding: 2rem; border-radius: 1rem; text-align: center; max-width: 400px; }
-                  h1 { color: #e53e3e; margin-bottom: 1rem; }
-                  p { color: #4a5568; }
-                </style>
-              </head>
-              <body>
-                <div class="card">
-                  <h1>❌ Server Error</h1>
-                  <p>An internal server error occurred. Please try again.</p>
-                </div>
-              </body>
-              </html>
-            `)
+            res.end('Server Error')
           }
         })
         return
       }
 
-      // Avatar serving endpoint
+      // Avatar serving
       if (url.pathname === '/api/avatar') {
         const filename = url.searchParams.get('file')
-
         if (!filename) {
           res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' })
           res.end('Missing file parameter')
           return
         }
-
         const avatarsDir = path.join(app.getPath('userData'), 'avatars')
         const avatarPath = path.join(avatarsDir, filename)
         const normalizedPath = path.normalize(avatarPath)
         const normalizedAvatarsDir = path.normalize(avatarsDir)
-
-        // Security check: ensure file is within avatars directory
         if (!normalizedPath.startsWith(normalizedAvatarsDir)) {
           res.writeHead(403, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' })
           res.end('Access Denied')
           return
         }
-
         if (!fs.existsSync(normalizedPath)) {
           res.writeHead(404, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' })
           res.end('File Not Found')
           return
         }
-
         const ext = path.extname(normalizedPath).toLowerCase()
         const mimeTypes: Record<string, string> = {
           '.jpg': 'image/jpeg',
@@ -543,7 +284,6 @@ function createMediaServer() {
           '.webp': 'image/webp',
         }
         const mimeType = mimeTypes[ext] || 'application/octet-stream'
-
         const fileStream = fs.createReadStream(normalizedPath)
         res.writeHead(200, {
           'Content-Type': mimeType,
@@ -554,32 +294,29 @@ function createMediaServer() {
         return
       }
 
-      // Media file serving (original functionality)
+      // Media file serving
       const filePath = url.searchParams.get('path')
-
       if (!filePath) {
         res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' })
         res.end('Missing path parameter')
         return
       }
-
       const normalizedPath = path.normalize(filePath)
-      const appDataDir = process.env.APPDATA || process.env.HOME || app.getPath('userData')
-      const audioProjectDir = path.join(appDataDir, 'AudioProjectManager')
-      const normalizedAudioProjectDir = path.normalize(audioProjectDir)
 
-      if (!normalizedPath.startsWith(normalizedAudioProjectDir)) {
+      const appDataRoot = app.getPath('appData')
+      const normalizedAppDataRoot = path.normalize(appDataRoot)
+
+      if (!normalizedPath.startsWith(normalizedAppDataRoot)) {
+        console.log('Blocked path outside AppData:', normalizedPath)
         res.writeHead(403, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' })
         res.end('Access Denied')
         return
       }
-
       if (!fs.existsSync(normalizedPath)) {
         res.writeHead(404, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' })
         res.end('File Not Found')
         return
       }
-
       const stat = fs.statSync(normalizedPath)
       const fileSize = stat.size
       const ext = path.extname(normalizedPath).toLowerCase()
@@ -592,7 +329,6 @@ function createMediaServer() {
         '.aac': 'audio/aac',
       }
       const mimeType = mimeTypes[ext] || 'application/octet-stream'
-
       const range = req.headers.range
       if (range) {
         const parts = range.replace(/bytes=/, '').split('-')
@@ -600,7 +336,6 @@ function createMediaServer() {
         const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
         const chunksize = end - start + 1
         const fileStream = fs.createReadStream(normalizedPath, { start, end })
-
         res.writeHead(206, {
           'Content-Range': `bytes ${start}-${end}/${fileSize}`,
           'Accept-Ranges': 'bytes',
@@ -649,8 +384,33 @@ protocol.registerSchemesAsPrivileged([
 
 app.whenReady().then(async () => {
   try {
+    const userDataPath = app.getPath('userData')
+    const dbDest = path.join(userDataPath, 'dev.db')
+
+    const dbSource = app.isPackaged
+      ? path.join(process.resourcesPath, 'dev.db')
+      : path.join(__dirname, '../../prisma/dev.db')
+
+    // Nếu trong thư mục UserData chưa có file DB -> Copy từ resources sang
+    if (!fs.existsSync(dbDest)) {
+      console.log('[main] 🗄️ Initializing Database...')
+      if (fs.existsSync(dbSource)) {
+        fs.copyFileSync(dbSource, dbDest)
+        console.log(`[main] ✅ Database copied to: ${dbDest}`)
+      } else {
+        console.error(`[main] ❌ Source database not found at: ${dbSource}`)
+      }
+    } else {
+      console.log('[main] ℹ️ Database already exists.')
+    }
+  } catch (error) {
+    console.error('[main] ⚠️ Failed to initialize database:', error)
+  }
+
+  // Cleanup temp stems
+  try {
     const appDataRoot = app.getPath('appData')
-    const projectsDir = path.join(appDataRoot, 'AudioProjectManager', 'projects')
+    const projectsDir = path.join(appDataRoot, 'Sketchy', 'projects')
     if (fs.existsSync(projectsDir)) {
       const projects = fs.readdirSync(projectsDir)
       for (const projectId of projects) {
@@ -683,10 +443,11 @@ app.whenReady().then(async () => {
         filePath = filePath.substring(1)
       }
       const normalizedPath = path.normalize(filePath)
-      const appDataPath = app.getPath('userData')
+      const appDataPath = app.getPath('appData')
       const normalizedAppDataPath = path.normalize(appDataPath)
 
       if (!normalizedPath.startsWith(normalizedAppDataPath)) {
+        console.error('Blocked media protocol path:', normalizedPath)
         return new Response('Access Denied', { status: 403 })
       }
       if (!fs.existsSync(normalizedPath)) {
@@ -763,7 +524,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', async () => {
   try {
     const appDataRoot = app.getPath('appData')
-    const projectsDir = path.join(appDataRoot, 'AudioProjectManager', 'projects')
+    const projectsDir = path.join(appDataRoot, 'Sketchy', 'projects')
     if (fs.existsSync(projectsDir)) {
       const projects = fs.readdirSync(projectsDir)
       for (const projectId of projects) {

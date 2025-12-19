@@ -80,6 +80,17 @@ export function Sidebar() {
     setExpandedProjects(newExpanded)
   }
 
+  // [HÀM MỚI] Helper để check URL ảnh
+  const isValidCoverUrl = (url: string | undefined | null) => {
+    if (!url) return false
+    return (
+      url.startsWith('http') ||
+      url.startsWith('file://') || // [QUAN TRỌNG] Thêm dòng này để nhận diện file local
+      url.startsWith('/') ||
+      url.startsWith('data:image')
+    )
+  }
+
   return (
     <aside
       className={cn(
@@ -306,11 +317,8 @@ export function Sidebar() {
               {/* Projects - Avatar only */}
               {projects.map((project) => {
                 const isActive = location.pathname.includes(`/project/${project.id}`)
-                const isCoverArtUrl =
-                  project.coverArt &&
-                  (project.coverArt.startsWith('http') ||
-                    project.coverArt.startsWith('/') ||
-                    project.coverArt.startsWith('data:image'))
+                // [FIX] Sử dụng hàm kiểm tra mới
+                const isCoverArtUrl = isValidCoverUrl(project.coverArt)
 
                 return (
                   <button
@@ -349,11 +357,8 @@ export function Sidebar() {
               {projects.map((project) => {
                 const isProjectExpanded = expandedProjects.has(project.id)
                 const tracks = getProjectTracks(project.id)
-                const isCoverArtUrl =
-                  project.coverArt &&
-                  (project.coverArt.startsWith('http') ||
-                    project.coverArt.startsWith('/') ||
-                    project.coverArt.startsWith('data:image'))
+                // [FIX] Sử dụng hàm kiểm tra mới
+                const isCoverArtUrl = isValidCoverUrl(project.coverArt)
 
                 return (
                   <div key={project.id}>

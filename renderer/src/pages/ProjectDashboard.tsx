@@ -197,7 +197,7 @@ export default function ProjectDashboard() {
               key={tab.id}
               variant={activeTab === tab.id ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setActiveTab(tab.id as 'tracks' | 'analytics')}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className="gap-2"
             >
               <tab.icon className="h-4 w-4" />

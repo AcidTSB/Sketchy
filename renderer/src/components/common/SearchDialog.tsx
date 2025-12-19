@@ -48,15 +48,14 @@ function SearchDialogInner({ onClose, isOpen }: { onClose: () => void; isOpen: b
         setLoading(true)
         try {
           const allTracksPromises = projects.map(async (project) => {
-            // @ts-expect-error - Type mismatch in electronAPI
             const { data, success } = await window.electronAPI.getTracks(parseInt(project.id))
             if (success && data) {
               return Promise.all(
-                data.map(async (t: Record<string, unknown>) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                data.map(async (t: any) => {
                   let audioUrl: string | undefined
                   if (t.latestVersionId) {
                     try {
-                      // @ts-expect-error - Type mismatch in electronAPI
                       const response = await window.electronAPI.getFilePath(t.latestVersionId)
                       if (response.success && response.data) {
                         const encodedPath = encodeURIComponent(response.data.path)
@@ -67,16 +66,16 @@ function SearchDialogInner({ onClose, isOpen }: { onClose: () => void; isOpen: b
                     }
                   }
                   return {
-                    id: t.id.toString(),
-                    projectId: t.projectId.toString(),
-                    title: t.title,
+                    id: String(t.id),
+                    projectId: String(t.projectId),
+                    title: String(t.title || 'Untitled'),
                     artist: undefined,
                     coverArt: project.coverArt,
                     duration: (t.latestVersion?.durationMs || 0) / 1000,
                     type: 'final' as const,
                     waveformData: [],
                     audioUrl,
-                    createdAt: new Date(t.createdAt),
+                    createdAt: new Date(t.createdAt || Date.now()),
                   }
                 })
               )
@@ -110,7 +109,11 @@ function SearchDialogInner({ onClose, isOpen }: { onClose: () => void; isOpen: b
           p.title.toLowerCase().includes(searchTerm) ||
           (p.artist && p.artist.toLowerCase().includes(searchTerm))
       ),
-      tracks: allTracks.filter((t) => t.title.toLowerCase().includes(searchTerm)),
+      tracks: allTracks.filter((t) =>
+        String(t.title || '')
+          .toLowerCase()
+          .includes(searchTerm)
+      ),
     }
   }, [query, folders, projects, allTracks])
 
@@ -226,14 +229,14 @@ function SearchDialogInner({ onClose, isOpen }: { onClose: () => void; isOpen: b
                 </div>
                 {results.tracks.map((t) => (
                   <button
-                    key={t.id}
-                    onClick={() => handleSelect('track', t.id)}
+                    key={String(t.id)}
+                    onClick={() => handleSelect('track', String(t.id))}
                     className="w-full px-4 py-2 flex items-center gap-3 hover:opacity-80"
                   >
                     <Music className="h-5 w-5" style={{ color: 'var(--text-secondary)' }} />
                     <div className="flex-1 text-left">
                       <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                        {t.title}
+                        {String(t.title || 'Untitled')}
                       </p>
                     </div>
                   </button>

@@ -486,7 +486,11 @@ export function MediaPlayer() {
     <div className={`w-full max-w-4xl mx-auto space-y-4 ${isOnPlayerPage ? 'hidden' : 'block'}`}>
       {/* Queue Panel (appears above when toggled) */}
       {showQueue && (
-        <div className="rounded-apple glass overflow-hidden" ref={queueRef}>
+        <div
+          className="rounded-apple glass overflow-hidden"
+          ref={queueRef}
+          style={{ maxWidth: '600px', margin: '0 auto' }}
+        >
           {/* Queue Header */}
           <div
             className="flex items-center justify-between p-4 border-b"
@@ -519,7 +523,7 @@ export function MediaPlayer() {
                   return (
                     <div
                       key={track.id}
-                      className={`flex items-center gap-3 p-3 cursor-pointer transition-opacity hover:opacity-80 border-b ${
+                      className={`group flex items-center gap-3 p-3 cursor-pointer transition-opacity hover:opacity-80 border-b ${
                         isCurrentTrack ? 'surface-subtle' : ''
                       }`}
                       style={{
@@ -606,6 +610,31 @@ export function MediaPlayer() {
                           {index + 1}
                         </span>
                       )}
+
+                      {/* Remove from Queue Button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        style={{ borderRadius: 'var(--radius-md)' }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          // Remove track from queue
+                          const newQueue = shuffledQueue.filter((t) => t.id !== track.id)
+                          setShuffledQueue(newQueue)
+                          // If we're removing the current track, stop playback
+                          if (isCurrentTrack) {
+                            audioService.pause()
+                            if (newQueue.length > 0) {
+                              setCurrentTrack(newQueue[0].id, false)
+                            } else {
+                              setCurrentTrack(null, false)
+                            }
+                          }
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   )
                 })}
@@ -813,7 +842,7 @@ export function MediaPlayer() {
               setShowVolumeSlider(true)
             }}
             onMouseLeave={() => {
-              volumeTimeoutRef.current = setTimeout(() => {
+              volumeTimeoutRef.current = window.setTimeout(() => {
                 setShowVolumeSlider(false)
               }, 300)
             }}

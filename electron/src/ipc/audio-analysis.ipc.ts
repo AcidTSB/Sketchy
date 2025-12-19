@@ -5,7 +5,27 @@ import { readFile, unlink } from 'fs/promises'
 import fs from 'fs'
 import path from 'path'
 import ffmpeg from 'fluent-ffmpeg'
-// @ts-expect-error - node-wav has no type definitions
+import ffmpegStatic from 'ffmpeg-static'
+
+// Logic xử lý đường dẫn ffmpeg.exe khi đóng gói (.exe)
+let ffmpegBinary: string
+
+if (app.isPackaged) {
+  // Production: Use ffmpeg from extraResources
+  ffmpegBinary = path.join(process.resourcesPath, 'bin', 'ffmpeg.exe')
+} else {
+  // Development: Use ffmpeg-static
+  ffmpegBinary = ffmpegStatic || ''
+  if (!ffmpegBinary) {
+    console.error('❌ Critical: Cannot find ffmpeg-static binary path!')
+    throw new Error('FFmpeg binary not found')
+  }
+}
+
+ffmpeg.setFfmpegPath(ffmpegBinary)
+console.log('✅ FFmpeg Configured at:', ffmpegBinary)
+// FIX LỖI TYPE: Bỏ qua kiểm tra type cho thư viện này
+// @ts-ignore
 import * as wav from 'node-wav'
 
 // Define AudioBuffer type for Node.js environment
@@ -245,7 +265,7 @@ async function loadAudioFile(
  */
 async function analyzeBPM(audioBuffer: AudioBuffer): Promise<number | undefined> {
   try {
-    // @ts-expect-error - music-tempo has no type definitions
+    // @ts-ignore - music-tempo has no type definitions
     const { default: MusicTempo } = await import('music-tempo')
 
     // Get first channel (mono)

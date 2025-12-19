@@ -1,17 +1,12 @@
-import { ipcMain } from 'electron'
+import { ipcMain, app } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
 import { fork, ChildProcess } from 'child_process'
 import path from 'path'
 import { ImportFilesSchema } from './schemas'
 import { log } from '../utils/logger'
+import { eventBus } from '../services/eventBus'
 
-interface ImportProgress {
-  importId: string
-  file: string
-  progress: number
-  status: 'pending' | 'processing' | 'done' | 'error'
-  error?: string
-}
+// Đã xóa interface ImportProgress bị thừa
 
 const activeImports = new Map<string, ChildProcess>()
 
@@ -24,8 +19,11 @@ export function registerImportHandlers() {
 
       log.info({ importId, fileCount: validated.files.length }, 'Starting import')
 
-      // Spawn import worker
-      const workerPath = path.join(__dirname, '../workers/importWorker.js')
+      // In development, the worker is a separate file.
+      // In production, it's bundled into the app's resources.
+      const workerPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'app.asar/electron/dist/workers/importWorker.js')
+        : path.join(__dirname, '../workers/importWorker.js')
       log.info({ workerPath }, 'Spawning worker')
 
       const worker = fork(workerPath, [], {
@@ -45,7 +43,16 @@ export function registerImportHandlers() {
       })
 
       // Listen to worker messages
-      worker.on('message', (message: ImportProgress) => {
+      worker.on('message', (message: any) => {
+        // 1. Nếu là App Event (do mình vừa định nghĩa ở worker)
+        if (message.type === 'app-event') {
+          log.info({ channel: message.channel }, 'Relaying worker event')
+          // Main process có quyền truy cập eventBus, nên gọi ở đây là an toàn
+          eventBus.emitAppEvent(message.channel, message.data)
+          return
+        }
+
+        // 2. Logic cũ xử lý Progress
         log.info({ importId, message }, 'Worker progress message')
         event.sender.send('import-progress', message)
 
@@ -78,9 +85,13 @@ export function registerImportHandlers() {
         }
       })
 
+      // <--- 2. LẤY ĐƯỜNG DẪN USER DATA CHUẨN --->
+      const userDataPath = app.getPath('userData')
+
       // Send import job to worker
       worker.send({
         importId,
+        userDataPath, // <--- 3. TRUYỀN XUỐNG CHO WORKER
         ...validated,
       })
       return { success: true, data: { importId } }

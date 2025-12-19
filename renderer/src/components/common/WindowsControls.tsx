@@ -2,23 +2,20 @@ import { X, Minus, Square } from 'lucide-react'
 
 export function WindowsControls() {
   const handleMinimize = () => {
-    if (window.electronAPI) {
-      // @ts-expect-error - Optional method in electronAPI
-      window.electronAPI.minimize?.()
+    if (window.electronAPI && 'minimize' in window.electronAPI) {
+      ;(window.electronAPI as { minimize: () => void }).minimize()
     }
   }
 
   const handleMaximize = () => {
-    if (window.electronAPI) {
-      // @ts-expect-error - Optional method in electronAPI
-      window.electronAPI.maximize?.()
+    if (window.electronAPI && 'maximize' in window.electronAPI) {
+      ;(window.electronAPI as { maximize: () => void }).maximize()
     }
   }
 
   const handleClose = () => {
-    if (window.electronAPI) {
-      // @ts-expect-error - Optional method in electronAPI
-      window.electronAPI.close?.()
+    if (window.electronAPI && 'close' in window.electronAPI) {
+      ;(window.electronAPI as { close: () => void }).close()
     }
   }
 

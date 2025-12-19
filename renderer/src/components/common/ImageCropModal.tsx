@@ -78,12 +78,12 @@ export default function ImageCropModal({ imageSrc, onCropComplete, onClose }: Im
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center min-h-screen"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}
       onClick={onClose}
     >
       <div
-        className="glass-elevated rounded-apple-xl p-6 w-[600px] max-w-[90vw] max-h-[90vh] flex flex-col"
+        className="glass-elevated rounded-apple-xl p-6 w-[600px] max-w-[90vw] max-h-[85vh] flex flex-col my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">

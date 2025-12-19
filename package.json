@@ -1,16 +1,20 @@
 {
-  "name": "audio-project-manager",
+  "name": "sketchy",
   "version": "1.0.0",
   "private": true,
+  "main": "electron/dist/main.js",
   "description": "Desktop audio project management application",
   "author": "Your Name",
   "license": "MIT",
   "scripts": {
+    "postinstall": "prisma generate",
     "setup": "node scripts/setup.js",
     "dev": "concurrently -k \"pnpm --filter renderer dev\" \"pnpm --filter electron-main wait-and-dev\"",
     "build": "pnpm -r build",
     "build:electron": "pnpm --filter electron-main build",
     "build:renderer": "pnpm --filter renderer build",
+    "build:python": "build-python.bat",
+    "prepare:ffmpeg": "node scripts/prepare-ffmpeg.js",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
@@ -29,7 +33,8 @@
     "package:win": "pnpm build && electron-builder --win",
     "package:mac": "pnpm build && electron-builder --mac",
     "package:linux": "pnpm build && electron-builder --linux",
-    "clean": "rimraf dist electron/dist renderer/dist node_modules/.cache",
+    "dist": "pnpm build:python && pnpm build && electron-builder --win",
+    "clean": "rimraf dist electron/dist renderer/dist node_modules/.cache electron/src/generated",
     "prepare": "husky install"
   },
   "devDependencies": {
@@ -38,7 +43,7 @@
     "@typescript-eslint/parser": "^6.13.2",
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
-    "electron": "^30.0.0",
+    "electron": "30.0.0",
     "electron-builder": "^24.9.1",
     "eslint": "^8.55.0",
     "eslint-config-prettier": "^9.1.0",
@@ -47,6 +52,8 @@
     "husky": "^8.0.3",
     "lint-staged": "^15.2.0",
     "prettier": "^3.1.1",
+    "prisma": "^5.7.1",
+    "rimraf": "^5.0.0",
     "tsx": "^4.20.6",
     "typescript": "^5.3.3",
     "vitest": "^1.0.4",
@@ -54,7 +61,28 @@
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",
-    "prisma": "^5.7.1"
+    "@supabase/supabase-js": "^2.88.0",
+    "archiver": "^7.0.1",
+    "bcryptjs": "^3.0.3",
+    "dayjs": "^1.11.10",
+    "dotenv": "^17.2.3",
+    "electron-store": "^11.0.2",
+    "extract-zip": "^2.0.1",
+    "ffmpeg-static": "^5.3.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "fs-extra": "^11.3.2",
+    "google-auth-library": "^10.5.0",
+    "googleapis": "^167.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "mime-types": "^3.0.2",
+    "music-metadata": "7.14.0",
+    "music-tempo": "^1.0.3",
+    "node-wav": "^0.0.2",
+    "nodemailer": "^7.0.11",
+    "pino": "^8.21.0",
+    "pino-pretty": "^10.3.1",
+    "uuid": "^9.0.1",
+    "zod": "^4.2.1"
   },
   "pnpm": {
     "overrides": {
@@ -78,8 +106,12 @@
     ]
   },
   "build": {
-    "appId": "com.audioproject.manager",
-    "productName": "Audio Project Manager",
+    "appId": "com.sketchy.app",
+    "productName": "Sketchy",
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node"
+    ],
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -87,12 +119,46 @@
     "files": [
       "electron/dist/**/*",
       "renderer/dist/**/*",
-      "prisma/**/*",
-      "node_modules/**/*"
+      "package.json",
+      "node_modules/**/*",
+      {
+        "from": "electron/src/generated",
+        "to": "electron/dist/generated",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "resources/demucs_engine.exe",
+        "to": "demucs_engine.exe"
+      },
+      {
+        "from": "resources/bin/ffmpeg.exe",
+        "to": "bin/ffmpeg.exe"
+      },
+      {
+        "from": "prisma/schema.prisma",
+        "to": "prisma/schema.prisma"
+      },
+      {
+        "from": "electron/src/generated/client/query_engine-windows.dll.node",
+        "to": "query_engine-windows.dll.node"
+      },
+      {
+        "from": ".env",
+        "to": ".env"
+      },
+      {
+        "from": "prisma/prisma/dev.db",
+        "to": "dev.db"
+      }
     ],
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
     },
     "mac": {
       "target": "dmg",

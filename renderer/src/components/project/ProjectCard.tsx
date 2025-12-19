@@ -60,9 +60,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
     }
   }
 
+  // [FIX] Thêm điều kiện startsWith('file://') để nhận diện ảnh local
   const isCoverArtUrl =
     project.coverArt &&
     (project.coverArt.startsWith('http') ||
+      project.coverArt.startsWith('file://') || // <--- QUAN TRỌNG
       project.coverArt.startsWith('/') ||
       project.coverArt.startsWith('data:image'))
 
@@ -102,7 +104,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             {project.title}
           </h3>
           <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-            {project.artist}
+            {project.artist || 'Unknown'}
           </p>
         </div>
 

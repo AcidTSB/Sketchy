@@ -10,12 +10,11 @@ out/
 # Database
 prisma/*.db
 prisma/*.db-journal
-prisma/migrations/
 
 # Logs
 logs/
 *.log
-npm-debug.log*
+*.log.*
 
 # OS
 .DS_Store
@@ -43,9 +42,27 @@ renderer/dist/
 test-results/
 playwright-report/
 
-# Reports
-report/
-reports/
+# PyInstaller
+*.spec
+build/
+resources/demucs_engine.exe
 
-# Docs
-docs
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Audio / temp
+outputs/
+temp/
+.cache/
+*.wav
+*.mp3
+*.flac
+
+# Windows build
+*.exe
+*.dll
+*.msi
+
+sketchy-backend/

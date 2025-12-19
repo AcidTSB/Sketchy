@@ -66,7 +66,7 @@ async function extractStems(
 
     // 2. Create output directory
     const appDataRoot = app.getPath('appData') // Lấy đường dẫn C:\Users\ADMIN\AppData\Roaming
-    const correctAppDir = 'AudioProjectManager' // Tên thư mục mà server của bạn cho phép
+    const correctAppDir = 'Sketchy' // Tên thư mục mà server của bạn cho phép
 
     const projectStemsPath = path.join(
       appDataRoot,
@@ -147,16 +147,41 @@ async function processStems(
   let processingError: Error | null = null // Biến để lưu lỗi từ stdout
 
   try {
-    // Python path - use the correct Python with Demucs installed
-    const pythonPath = 'python'
-    // Use source path for script (not dist path)
-    const scriptPath = path.join(__dirname, '../../scripts/demucs_separate.py')
+    // Determine if running in packaged app or development
+    let command: string
+    let args: string[]
 
-    // Check if script exists
-    const scriptExists = existsSync(scriptPath)
+    if (app.isPackaged) {
+      // PRODUCTION MODE: Use bundled Python executable
+      // The .exe file will be in process.resourcesPath (copied by electron-builder)
+      command = path.join(process.resourcesPath, 'demucs_engine.exe')
 
-    if (!scriptExists) {
-      throw new Error(`Python script not found at: ${scriptPath}`)
+      // Check if bundled executable exists
+      if (!existsSync(command)) {
+        throw new Error(
+          `Python executable not found at: ${command}\n\n` +
+            `Please rebuild the application with: npm run build-python && npm run package:win`
+        )
+      }
+
+      // For standalone .exe, pass arguments directly (no script path needed)
+      args = [options.inputFilePath, options.outputDir, JSON.stringify(stems)]
+
+      console.log('[STEM] Running in PRODUCTION mode with bundled executable:', command)
+    } else {
+      // DEVELOPMENT MODE: Use Python script
+      const pythonPath = 'python'
+      const scriptPath = path.join(__dirname, '../../scripts/demucs_separate.py')
+
+      // Check if script exists
+      if (!existsSync(scriptPath)) {
+        throw new Error(`Python script not found at: ${scriptPath}`)
+      }
+
+      command = pythonPath
+      args = [scriptPath, options.inputFilePath, options.outputDir, JSON.stringify(stems)]
+
+      console.log('[STEM] Running in DEVELOPMENT mode with Python script:', scriptPath)
     }
 
     // Check if cancelled
@@ -175,52 +200,66 @@ async function processStems(
       message: 'Starting stem separation...',
     })
 
-    // Spawn Python process with retries (try 'python' then 'py')
-    const args = [scriptPath, options.inputFilePath, options.outputDir, JSON.stringify(stems)]
-
-    // Helper to attempt spawn and await immediate error (ENOENT) or success
-    const trySpawn = (exe: string): { proc: ChildProcess | null; error: Error | null } => {
-      try {
-        const p = spawn(exe, args, {
-          cwd: path.dirname(scriptPath),
-          env: { ...process.env },
-        })
-        return { proc: p, error: null }
-      } catch (err: unknown) {
-        return { proc: null, error: err as Error }
-      }
-    }
-
-    const candidates = [pythonPath, 'py']
+    // Spawn process
+    // In production: spawn the .exe directly
+    // In development: try 'python' then 'py' as fallback
     let demucsProcess: ChildProcess | null = null
     let lastSpawnError: Error | null = null
 
-    for (const exe of candidates) {
-      const res = trySpawn(exe)
-      if (res.proc) {
-        demucsProcess = res.proc
-        break
+    if (app.isPackaged) {
+      // Production: Just spawn the bundled .exe
+      try {
+        demucsProcess = spawn(command, args, {
+          env: { ...process.env },
+        })
+        console.log('[STEM] Successfully spawned bundled executable')
+      } catch (err: unknown) {
+        lastSpawnError = err as Error
+        console.error('[STEM] Failed to spawn bundled executable:', lastSpawnError)
       }
-      lastSpawnError = res.error
-      console.warn('!!!!!!!! [MAIN] Spawn attempt FAILED for !!!!!!!!', exe, lastSpawnError)
+    } else {
+      // Development: Try 'python' then 'py'
+      const trySpawn = (exe: string): { proc: ChildProcess | null; error: Error | null } => {
+        try {
+          const p = spawn(exe, args, {
+            cwd: path.dirname(args[0]), // args[0] is scriptPath in dev mode
+            env: { ...process.env },
+          })
+          return { proc: p, error: null }
+        } catch (err: unknown) {
+          return { proc: null, error: err as Error }
+        }
+      }
+
+      const candidates = [command, 'py'] // command is 'python' in dev mode
+      for (const exe of candidates) {
+        const res = trySpawn(exe)
+        if (res.proc) {
+          demucsProcess = res.proc
+          console.log('[STEM] Successfully spawned Python with:', exe)
+          break
+        }
+        lastSpawnError = res.error
+        console.warn('[STEM] Spawn attempt failed for:', exe, lastSpawnError)
+      }
     }
 
     if (!demucsProcess) {
-      // Could not spawn any Python executable
-      console.error(
-        '!!!!!!!! [MAIN] Failed to spawn Python process. Last error: !!!!!!!!',
-        lastSpawnError
-      )
+      // Could not spawn process
+      const errorMsg = app.isPackaged
+        ? `Failed to start stem separation engine.\n\nThe bundled Python executable could not be started.\nPlease reinstall the application.`
+        : `Could not start Python. Make sure Python is installed and available on PATH (try "python --version" in terminal).`
+
+      console.error('[STEM] Failed to spawn process. Last error:', lastSpawnError)
       sendProgress(mainWindow, {
         extractionId,
         trackId,
         progress: 0,
         currentStem: '',
         status: 'error',
-        message:
-          'Could not start Python. Make sure Python is installed and available on PATH (try "python" or "py").',
+        message: errorMsg,
       })
-      throw new Error('Failed to spawn Python process')
+      throw new Error('Failed to spawn stem separation process')
     }
 
     // Store process for cancellation
@@ -382,7 +421,7 @@ async function processStems(
         const appDataRoot = app.getPath('appData')
         const tempStemsDir = path.join(
           appDataRoot,
-          'AudioProjectManager',
+          'Sketchy',
           'projects',
           track.projectId.toString(),
           'temp-stems',

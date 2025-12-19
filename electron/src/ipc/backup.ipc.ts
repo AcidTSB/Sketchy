@@ -15,7 +15,7 @@ import { getCurrentUserId } from './auth-context'
 
 export function registerBackupHandlers() {
   const getAppDataPath = () => {
-    return path.join(app.getPath('appData'), 'AudioProjectManager')
+    return path.join(app.getPath('appData'), 'Sketchy')
   }
 
   // ============================================

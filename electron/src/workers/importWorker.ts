@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../generated/client'
 import fs from 'fs-extra'
 import path from 'path'
 import crypto from 'crypto'
 import * as mm from 'music-metadata'
-import { eventBus } from '../services/eventBus'
 
 interface ImportJob {
   importId: string
@@ -11,6 +10,7 @@ interface ImportJob {
   folderId?: number
   files: { path: string; name: string }[]
   storageMode: 'copy' | 'reference'
+  userDataPath: string //
 }
 
 interface ImportProgress {
@@ -21,32 +21,59 @@ interface ImportProgress {
   error?: string
 }
 
-const prisma = new PrismaClient()
+// 2. KHÔNG KHỞI TẠO PRISMA NGAY LẬP TỨC
+let prisma: PrismaClient
 let isCancelled = false
 
 // Listen for messages from parent
 process.on('message', async (job: ImportJob) => {
-  await processImport(job)
-  process.exit(0)
+  try {
+    // 3. KHỞI TẠO PRISMA VỚI ĐƯỜNG DẪN CHÍNH XÁC
+    if (!prisma) {
+      // Đảm bảo tên file 'dev.db' hoặc 'sketchy.db' khớp với file trong máy bạn
+      // Kiểm tra file schema.prisma xem datasource db provider là "sqlite" url là gì
+      const dbPath = path.join(job.userDataPath, 'dev.db')
+
+      console.log(`[worker] Connecting to DB at: ${dbPath}`)
+
+      prisma = new PrismaClient({
+        datasources: {
+          db: {
+            url: `file:${dbPath}`,
+          },
+        },
+      })
+    }
+
+    await processImport(job)
+  } catch (err: any) {
+    console.error('[worker] Critical error:', err)
+    if (process.send) {
+      process.send({
+        importId: job.importId,
+        status: 'error',
+        error: `Worker init failed: ${err.message}`,
+      })
+    }
+  } finally {
+    // Ngắt kết nối và thoát
+    if (prisma) await prisma.$disconnect()
+    process.exit(0)
+  }
 })
 
 process.on('SIGTERM', () => {
   isCancelled = true
+  // Không exit ngay để code có cơ hội dọn dẹp nếu cần,
+  // nhưng thường worker import thì exit luôn cũng được
   process.exit(1)
 })
 
 async function processImport(job: ImportJob) {
-  const { importId, projectId, folderId, files, storageMode } = job
+  const { importId, projectId, folderId, files, storageMode, userDataPath } = job
 
-  // Get or create app data directory
-  const appDataDir = process.env.APPDATA || process.env.HOME || ''
-  const storageBaseDir = path.join(
-    appDataDir,
-    'AudioProjectManager',
-    'projects',
-    String(projectId),
-    'files'
-  )
+  // Sử dụng userDataPath chuẩn từ Main gửi xuống thay vì đoán process.env
+  const storageBaseDir = path.join(userDataPath, 'projects', String(projectId), 'files')
   await fs.ensureDir(storageBaseDir)
 
   for (let i = 0; i < files.length; i++) {
@@ -140,7 +167,7 @@ async function processImport(job: ImportJob) {
       // Emit file imported event for notifications
       const project = await prisma.project.findUnique({ where: { id: projectId } })
       if (project) {
-        eventBus.emitAppEvent('file:imported', {
+        sendAppEvent('file:imported', {
           userId: project.userId,
           entityType: 'file',
           entityId: fileVersion.id,
@@ -168,14 +195,15 @@ async function processImport(job: ImportJob) {
 
       sendProgress(importId, file.name, 100, 'done')
     } catch (error) {
+      console.error(`[worker] Error processing file ${file.name}:`, error) // Log chi tiết ra stderr
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       sendProgress(importId, file.name, 0, 'error', errorMessage)
     }
   }
-
-  await prisma.$disconnect()
 }
 
+// ... (Giữ nguyên các hàm helper computeChecksum, copyFileWithProgress, extractMetadata, sendAppEvent, sendProgress bên dưới)
+// Nhớ copy lại các hàm đó vào đây nhé, tôi không paste lại để tiết kiệm chỗ
 async function computeChecksum(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash('sha256')
@@ -256,6 +284,16 @@ function getMimeTypeFromExtension(filePath: string): string {
     '.aac': 'audio/aac',
   }
   return mimeTypes[ext] || 'audio/unknown'
+}
+
+function sendAppEvent(channel: string, data: any) {
+  if (process.send) {
+    process.send({
+      type: 'app-event',
+      channel,
+      data,
+    })
+  }
 }
 
 function sendProgress(

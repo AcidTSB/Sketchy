@@ -1,0 +1,329 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../electron/src/generated/client"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          Int     @id @default(autoincrement())
+  userId      Int // Owner of this project
+  name        String
+  description String?
+  coverArt    String? // Base64 image or URL
+
+  // Metadata fields for audio production
+  bpm        Int?
+  musicalKey String? // "C", "Am", "F#", etc.
+  mood       String? // "energetic", "chill", "dark", etc.
+  genre      String? // "Hip-Hop", "EDM", "Pop", etc.
+
+  // Notes & Checklist (stored as JSON string)
+  notesJson String? // { "notes": [], "checklist": [], "priority": "high", "deadline": "2025-10-05" }
+
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  user      UserProfile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folders   Folder[]
+  tracks    Track[]
+  snapshots ProjectSnapshot[]
+  backups   ProjectBackup[]
+
+  @@index([userId])
+}
+
+model Folder {
+  id        Int     @id @default(autoincrement())
+  name      String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId Int
+  tracks    Track[]
+}
+
+model Track {
+  id              Int           @id @default(autoincrement())
+  projectId       Int
+  folderId        Int?
+  title           String
+  status          String?       @default("draft") // "draft" | "review" | "approved" | "final"
+  latestVersionId Int?          @unique // <-- ĐÃ SỬA LỖI Ở ĐÂY
+  parentTrackId   Int? // For stems - reference to original track
+  stemType        String? // 'vocals' | 'drums' | 'bass' | 'other'
+  bpm             Float? // Detected BPM
+  key             String? // Detected musical key (e.g., "Am", "C#")
+  latestVersion   FileVersion?  @relation("LatestVersion", fields: [latestVersionId], references: [id])
+  versions        FileVersion[] @relation("TrackVersions")
+  tags            TrackTag[]
+  notes           Note[]
+  createdAt       DateTime      @default(now())
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  folder          Folder?       @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  parentTrack     Track?        @relation("TrackStems", fields: [parentTrackId], references: [id], onDelete: Cascade)
+  stems           Track[]       @relation("TrackStems")
+}
+
+model FileVersion {
+  id             Int      @id @default(autoincrement())
+  trackId        Int
+  createdAt      DateTime @default(now())
+  createdBy      String?
+  label          String? // Version label: "Demo", "Final Mix", "Master", etc.
+  originalPath   String
+  storedPath     String?
+  storageMode    String // "copy" | "reference"
+  mimeType       String?
+  sizeBytes      Int?
+  durationMs     Int?
+  checksum       String?
+  metadataJson   String? // SQLite doesn't have Json type, use String
+  track          Track    @relation("TrackVersions", fields: [trackId], references: [id], onDelete: Cascade)
+  latestForTrack Track?   @relation("LatestVersion")
+
+  @@index([checksum])
+}
+
+model Tag {
+  id     Int        @id @default(autoincrement())
+  name   String     @unique
+  tracks TrackTag[]
+}
+
+model TrackTag {
+  track   Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  trackId Int
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId   Int
+
+  @@id([trackId, tagId])
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  trackId   Int
+  content   String
+  createdAt DateTime @default(now())
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+}
+
+model ShareLink {
+  id           Int       @id @default(autoincrement())
+  token        String    @unique
+  trackId      Int?
+  projectId    Int?
+  passwordHash String?
+  expiresAt    DateTime?
+  revoked      Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  // Cloud storage URL for public access
+  cloudFileUrl String? @map("cloud_file_url")
+  projectName  String? @map("project_name") // Cached for display
+}
+
+model UserProfile {
+  id       Int     @id @default(autoincrement())
+  name     String
+  email    String  @unique
+  password String? // Bcrypt hashed password (null for OAuth users)
+  bio      String?
+  location String?
+  website  String?
+  avatar   String?
+
+  // OAuth fields
+  googleId     String? @unique // Google OAuth ID
+  authProvider String  @default("local") // "local" | "google"
+
+  // Email verification
+  emailVerified           Boolean   @default(false)
+  verificationToken       String?   @unique
+  verificationTokenExpiry DateTime?
+
+  // Password reset
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
+
+  totalProjects Int              @default(0)
+  totalTracks   Int              @default(0)
+  totalPlays    Int              @default(0)
+  followers     Int              @default(0)
+  following     Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  settings      UserSettings?
+  projects      Project[] // User's projects
+  sessions      UserSession[] // User's app sessions
+  activities    ActivityLog[] // User's activity log
+  playHistory   PlayHistory[] // User's play history
+  analytics     DailyAnalytics[] // User's analytics
+}
+
+model UserSettings {
+  id                         Int         @id @default(autoincrement())
+  userId                     Int         @unique
+  theme                      String      @default("dark")
+  accentColor                String      @default("#a855f7")
+  defaultQuality             String      @default("high")
+  autoPlay                   Boolean     @default(true)
+  crossfade                  Boolean     @default(false)
+  crossfadeDuration          Int         @default(3)
+  autoSaveInterval           Int         @default(300)
+  maxOfflineStorage          Int         @default(5000)
+  emailNotifications         Boolean     @default(true)
+  pushNotifications          Boolean     @default(true)
+  collaborationNotifications Boolean     @default(true)
+  profileVisibility          String      @default("public")
+  showActivity               Boolean     @default(true)
+  showStats                  Boolean     @default(true)
+  user                       UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// NEW MODELS FOR VERSION TIMELINE & BACKUP
+// ============================================
+
+// Project Snapshot - Lưu trạng thái project tại một thời điểm
+model ProjectSnapshot {
+  id           Int      @id @default(autoincrement())
+  projectId    Int
+  name         String // "Version 1.0", "Pre-mix", "Final Master"
+  description  String?
+  snapshotPath String // Path to folder containing snapshot files
+  metadataJson String? // JSON containing track states, settings, etc.
+  createdAt    DateTime @default(now())
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// Project Backup - Lưu backup zip file
+model ProjectBackup {
+  id           Int      @id @default(autoincrement())
+  projectId    Int
+  backupPath   String // Path to zip file
+  sizeBytes    Int?
+  isAutoBackup Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// Checklist Items - Lưu checklist riêng biệt cho từng project/track
+model ChecklistItem {
+  id        Int       @id @default(autoincrement())
+  projectId Int?
+  trackId   Int?
+  content   String
+  completed Boolean   @default(false)
+  priority  String    @default("medium") // "low" | "medium" | "high"
+  deadline  DateTime?
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// Audio Comparison Session - Lưu thông tin so sánh A/B
+model CompareSession {
+  id           Int      @id @default(autoincrement())
+  projectId    Int
+  versionAId   Int // FileVersion ID hoặc Snapshot ID
+  versionBId   Int
+  versionAType String // "file_version" | "snapshot"
+  versionBType String
+  notes        String?
+  createdAt    DateTime @default(now())
+}
+
+// ============================================
+// ANALYTICS & ACTIVITY TRACKING
+// ============================================
+
+// Activity Log - Track all user actions
+model ActivityLog {
+  id         Int         @id @default(autoincrement())
+  userId     Int
+  action     String // "play", "import", "create_project", "export", etc.
+  entityType String? // "project", "track", "folder"
+  entityId   Int?
+  metadata   String? // JSON metadata
+  createdAt  DateTime    @default(now())
+  user       UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([action])
+}
+
+// Play History - Track playback stats
+model PlayHistory {
+  id        Int         @id @default(autoincrement())
+  userId    Int
+  trackId   Int
+  projectId Int
+  duration  Int // Seconds played
+  completed Boolean     @default(false) // Did user play till end?
+  playedAt  DateTime    @default(now())
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, playedAt])
+  @@index([trackId])
+  @@index([projectId])
+}
+
+// Analytics Summary - Daily/Weekly/Monthly aggregates
+model DailyAnalytics {
+  id     Int      @id @default(autoincrement())
+  userId Int
+  date   DateTime // Start of period (day/week/month)
+  period String // "daily", "weekly", "monthly"
+
+  // Activity metrics
+  projectsCreated Int @default(0)
+  tracksImported  Int @default(0)
+  tracksPlayed    Int @default(0)
+  playTimeSeconds Int @default(0)
+  exportsCount    Int @default(0)
+
+  // File metrics
+  storageUsedMB Float @default(0)
+  filesImported Int   @default(0)
+
+  // Engagement
+  sessionsCount  Int   @default(0)
+  avgSessionMins Float @default(0)
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, period])
+  @@index([userId, period, date])
+}
+
+// User Session - Track app usage sessions
+model UserSession {
+  id           Int         @id @default(autoincrement())
+  userId       Int
+  startedAt    DateTime    @default(now())
+  endedAt      DateTime?
+  durationMins Float? // Calculated when session ends
+  actionsCount Int         @default(0)
+  user         UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+}
+
+// Popular Tracks/Projects - Cached rankings
+model PopularityRank {
+  id           Int       @id @default(autoincrement())
+  entityType   String // "track" | "project"
+  entityId     Int
+  playsCount   Int       @default(0)
+  lastPlayedAt DateTime?
+  rankScore    Float     @default(0) // Weighted score
+  period       String // "week" | "month" | "all_time"
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([entityType, entityId, period])
+  @@index([entityType, period, rankScore])
+}

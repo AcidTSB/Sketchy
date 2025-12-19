@@ -3,18 +3,15 @@ import { persist } from 'zustand/middleware'
 
 // Helper: Convert avatar file path to HTTP URL
 export function getAvatarUrl(avatarPath: string | undefined): string | undefined {
-  if (!avatarPath) return undefined
+  if (!avatarPath) return undefined // If already a URL, return as-is
 
-  // If already a URL, return as-is
   if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {
     return avatarPath
-  }
+  } // Extract filename from path (handle both Windows and Unix paths)
 
-  // Extract filename from path (handle both Windows and Unix paths)
   const filename = avatarPath.split(/[/\\]/).pop()
-  if (!filename) return undefined
+  if (!filename) return undefined // Return HTTP URL to avatar endpoint
 
-  // Return HTTP URL to avatar endpoint
   return `http://localhost:45678/api/avatar?file=${encodeURIComponent(filename)}`
 }
 
@@ -27,8 +24,7 @@ export interface User {
   bio?: string
   location?: string
   website?: string
-  createdAt: Date
-  // Stats
+  createdAt: Date // Stats
   totalProjects: number
   totalTracks: number
   totalPlays: number
@@ -39,25 +35,22 @@ export interface User {
 export interface UserSettings {
   // Appearance
   theme: 'light' | 'dark' | 'system'
-  accentColor: string
+  accentColor: string // Audio
 
-  // Audio
   defaultQuality: 'low' | 'medium' | 'high'
   autoPlay: boolean
   crossfade: boolean
   crossfadeDuration: number // seconds
-
   // Notifications
+
   emailNotifications: boolean
   pushNotifications: boolean
-  collaborationNotifications: boolean
+  collaborationNotifications: boolean // Privacy
 
-  // Privacy
   profileVisibility: 'public' | 'private' | 'friends'
   showActivity: boolean
-  showStats: boolean
+  showStats: boolean // Storage
 
-  // Storage
   autoSaveInterval: number // minutes
   maxOfflineStorage: number // MB
 }
@@ -65,12 +58,10 @@ export interface UserSettings {
 interface UserState {
   // Current user
   currentUser: User | null
-  isAuthenticated: boolean
+  isAuthenticated: boolean // Settings
 
-  // Settings
-  settings: UserSettings
+  settings: UserSettings // Actions
 
-  // Actions
   fetchUser: () => Promise<void>
   login: (email: string, password: string) => Promise<void>
   loginWithGoogle: () => Promise<void>
@@ -82,9 +73,8 @@ interface UserState {
   ) => Promise<{ emailVerified?: boolean } | void>
   updateProfile: (updates: Partial<User>) => void
   updateSettings: (updates: Partial<UserSettings>) => Promise<void>
-  uploadAvatar: (file: File) => Promise<string>
+  uploadAvatar: (file: File) => Promise<string> // Social
 
-  // Social
   followers: User[]
   following: User[]
   followUser: (userId: string) => Promise<void>
@@ -116,9 +106,8 @@ export const useUserStore = create<UserState>()(
       isAuthenticated: false,
       settings: defaultSettings,
       followers: [],
-      following: [],
+      following: [], // Fetch user from database
 
-      // Fetch user from database
       fetchUser: async () => {
         try {
           // Check if userId exists in localStorage for auto-login
@@ -140,36 +129,36 @@ export const useUserStore = create<UserState>()(
             }
 
             if (success && data) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const userData = data as any
               set({
                 currentUser: {
-                  id: data.id.toString(),
-                  name: data.name,
-                  email: data.email,
-                  emailVerified: data.emailVerified || false,
-                  avatar: data.avatar || undefined,
-                  bio: data.bio || undefined,
-                  location: data.location || undefined,
-                  website: data.website || undefined,
-                  createdAt: new Date(data.createdAt),
-                  totalProjects: data.totalProjects,
-                  totalTracks: data.totalTracks,
-                  totalPlays: data.totalPlays,
-                  followers: data.followers,
-                  following: data.following,
+                  id: userData.id.toString(),
+                  name: userData.name,
+                  email: userData.email,
+                  emailVerified: userData.emailVerified || false,
+                  avatar: userData.avatar || undefined,
+                  bio: userData.bio || undefined,
+                  location: userData.location || undefined,
+                  website: userData.website || undefined,
+                  createdAt: new Date(userData.createdAt || Date.now()),
+                  totalProjects: userData.totalProjects || 0,
+                  totalTracks: userData.totalTracks || 0,
+                  totalPlays: userData.totalPlays || 0,
+                  followers: userData.followers || 0,
+                  following: userData.following || 0,
                 },
                 isAuthenticated: true,
-              })
+              }) // Fetch settings
 
-              // Fetch settings
               const settingsResult = await window.electronAPI.getSettings()
               if (settingsResult.success && settingsResult.data) {
                 const backendSettings = settingsResult.data
                 set((state) => ({
                   settings: {
                     ...state.settings,
-                    theme: backendSettings.theme || 'dark',
+                    theme: backendSettings.theme || 'dark', // Ưu tiên defaultQuality, fallback sang audioQuality
 
-                    // Ưu tiên defaultQuality, fallback sang audioQuality
                     defaultQuality:
                       backendSettings.defaultQuality || backendSettings.audioQuality || 'high',
 
@@ -196,9 +185,8 @@ export const useUserStore = create<UserState>()(
                     maxOfflineStorage:
                       backendSettings.maxOfflineStorage ?? state.settings.maxOfflineStorage,
                   },
-                }))
+                })) // Sync theme with themeStore to apply UI changes
 
-                // Sync theme with themeStore to apply UI changes
                 const theme = backendSettings.theme || 'dark'
                 if (theme === 'light' || theme === 'dark') {
                   const { useThemeStore } = await import('./themeStore')
@@ -215,9 +203,8 @@ export const useUserStore = create<UserState>()(
           console.error('fetchUser error:', error)
           localStorage.removeItem('userId')
         }
-      },
+      }, // Login
 
-      // Login
       login: async (email: string, password: string) => {
         try {
           // Authenticate user
@@ -236,29 +223,29 @@ export const useUserStore = create<UserState>()(
 
           if (success && data) {
             // Save userId to localStorage for auto-login
-            localStorage.setItem('userId', data.id.toString())
+            localStorage.setItem('userId', data.id.toString()) // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
+            const userData = data as any
             set({
               currentUser: {
-                id: data.id.toString(),
-                name: data.name,
-                email: data.email,
-                emailVerified: data.emailVerified || false,
-                avatar: data.avatar || undefined,
-                bio: data.bio || undefined,
-                location: data.location || undefined,
-                website: data.website || undefined,
-                createdAt: new Date(data.createdAt || new Date()),
-                totalProjects: data.totalProjects || 0,
-                totalTracks: data.totalTracks || 0,
-                totalPlays: data.totalPlays || 0,
-                followers: data.followers || 0,
-                following: data.following || 0,
+                id: userData.id.toString(),
+                name: userData.name,
+                email: userData.email,
+                emailVerified: userData.emailVerified || false,
+                avatar: userData.avatar || undefined,
+                bio: userData.bio || undefined,
+                location: userData.location || undefined,
+                website: userData.website || undefined,
+                createdAt: new Date(userData.createdAt || Date.now()),
+                totalProjects: userData.totalProjects || 0,
+                totalTracks: userData.totalTracks || 0,
+                totalPlays: userData.totalPlays || 0,
+                followers: userData.followers || 0,
+                following: userData.following || 0,
               },
               isAuthenticated: true,
-            })
+            }) // Fetch settings
 
-            // Fetch settings
             const settingsResult = await window.electronAPI.getSettings()
             if (settingsResult.success && settingsResult.data) {
               const backendSettings = settingsResult.data
@@ -288,9 +275,8 @@ export const useUserStore = create<UserState>()(
                   maxOfflineStorage:
                     backendSettings.maxOfflineStorage ?? state.settings.maxOfflineStorage,
                 },
-              }))
+              })) // Sync theme
 
-              // Sync theme
               const theme = backendSettings.theme || 'dark'
               if (theme === 'light' || theme === 'dark') {
                 const { useThemeStore } = await import('./themeStore')
@@ -304,9 +290,8 @@ export const useUserStore = create<UserState>()(
           console.error('Login error:', error)
           throw error
         }
-      },
+      }, // Register
 
-      // Register
       register: async (name: string, email: string, password: string) => {
         try {
           // SỬA LỖI Ở ĐÂY: Thêm 'as any' vào cuối hàm gọi API
@@ -321,30 +306,29 @@ export const useUserStore = create<UserState>()(
 
           if (success && data) {
             // Save userId to localStorage for auto-login
-            localStorage.setItem('userId', data.id.toString())
+            localStorage.setItem('userId', data.id.toString()) // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
+            const userData = data as any
             set({
               currentUser: {
-                id: data.id.toString(),
-                name: data.name,
-                email: data.email,
-                emailVerified: data.emailVerified || false,
-                avatar: data.avatar || undefined,
-                bio: data.bio || undefined,
-                location: data.location || undefined,
-                website: data.website || undefined,
+                id: userData.id.toString(),
+                name: userData.name,
+                email: userData.email,
+                emailVerified: userData.emailVerified || false,
+                avatar: userData.avatar || undefined,
+                bio: userData.bio || undefined,
+                location: userData.location || undefined,
+                website: userData.website || undefined,
                 createdAt: new Date(),
                 totalProjects: 0,
                 totalTracks: 0,
                 totalPlays: 0,
                 followers: 0,
                 following: 0,
-              },
-              // Bây giờ TypeScript sẽ không báo lỗi data.emailVerified nữa
+              }, // Bây giờ TypeScript sẽ không báo lỗi data.emailVerified nữa
               isAuthenticated: !data.emailVerified,
-            })
+            }) // Return email verification status
 
-            // Return email verification status
             return { emailVerified: data.emailVerified }
           } else {
             throw new Error(error || 'Registration failed')
@@ -353,9 +337,8 @@ export const useUserStore = create<UserState>()(
           console.error('Register error:', error)
           throw error
         }
-      },
+      }, // Login with Google
 
-      // Login with Google
       loginWithGoogle: async () => {
         try {
           const { data, success, error } = await window.electronAPI.authGoogleLogin()
@@ -382,9 +365,8 @@ export const useUserStore = create<UserState>()(
                 following: 0,
               },
               isAuthenticated: true,
-            })
+            }) // Fetch settings
 
-            // Fetch settings
             const settingsResult = await window.electronAPI.getSettings()
             if (settingsResult.success && settingsResult.data) {
               const backendSettings = settingsResult.data
@@ -414,9 +396,8 @@ export const useUserStore = create<UserState>()(
                   maxOfflineStorage:
                     backendSettings.maxOfflineStorage ?? state.settings.maxOfflineStorage,
                 },
-              }))
+              })) // Sync theme
 
-              // Sync theme
               const theme = backendSettings.theme || 'dark'
               if (theme === 'light' || theme === 'dark') {
                 const { useThemeStore } = await import('./themeStore')
@@ -430,9 +411,8 @@ export const useUserStore = create<UserState>()(
           console.error('Google login error:', error)
           throw error
         }
-      },
+      }, // Logout
 
-      // Logout
       logout: async () => {
         try {
           await window.electronAPI.authLogout()
@@ -443,9 +423,8 @@ export const useUserStore = create<UserState>()(
           localStorage.removeItem('userId')
           set({ currentUser: null, isAuthenticated: false })
         }
-      },
+      }, // Update profile
 
-      // Update profile
       updateProfile: async (updates: Partial<User>) => {
         const { currentUser } = get()
         if (!currentUser) throw new Error('No user logged in')
@@ -478,9 +457,8 @@ export const useUserStore = create<UserState>()(
           console.error('Update profile error:', error)
           throw error
         }
-      },
+      }, // Update settings - [QUAN TRỌNG: ĐÃ SỬA LỖI Ở ĐÂY]
 
-      // Update settings - [QUAN TRỌNG: ĐÃ SỬA LỖI Ở ĐÂY]
       updateSettings: async (updates: Partial<UserSettings>) => {
         try {
           // Optimistically update UI first
@@ -489,16 +467,14 @@ export const useUserStore = create<UserState>()(
               ...state.settings,
               ...updates,
             },
-          }))
+          })) // Map UserSettings to AppSettings format
 
-          // Map UserSettings to AppSettings format
           const appSettingsUpdate: Record<string, string | number | boolean | undefined> = {}
           if (updates.theme !== undefined) appSettingsUpdate.theme = updates.theme
           if (updates.accentColor !== undefined) appSettingsUpdate.accentColor = updates.accentColor
 
           if (updates.defaultQuality !== undefined) {
-            appSettingsUpdate.defaultQuality = updates.defaultQuality
-            // [FIX] Không gửi audioQuality lên server để tránh lỗi validate
+            appSettingsUpdate.defaultQuality = updates.defaultQuality // [FIX] Không gửi audioQuality lên server để tránh lỗi validate
           }
 
           if (updates.autoPlay !== undefined) appSettingsUpdate.autoPlay = updates.autoPlay
@@ -525,11 +501,9 @@ export const useUserStore = create<UserState>()(
 
           if (!success) {
             // Revert on error
-            console.error('❌ Failed to update settings, reverting:', error)
-            // Optionally revert here if needed
-          }
+            console.error('❌ Failed to update settings, reverting:', error) // Optionally revert here if needed
+          } // Sync theme with themeStore to apply UI changes
 
-          // Sync theme with themeStore to apply UI changes
           if (updates.theme && (updates.theme === 'light' || updates.theme === 'dark')) {
             const { useThemeStore } = await import('./themeStore')
             useThemeStore.getState().setTheme(updates.theme)
@@ -537,9 +511,8 @@ export const useUserStore = create<UserState>()(
         } catch (error) {
           console.error('❌ Update settings error:', error)
         }
-      },
+      }, // Upload avatar
 
-      // Upload avatar
       uploadAvatar: async (file: File) => {
         const { currentUser } = get()
         if (!currentUser) throw new Error('No user logged in')
@@ -547,9 +520,8 @@ export const useUserStore = create<UserState>()(
         try {
           // Convert File to ArrayBuffer
           const arrayBuffer = await file.arrayBuffer()
-          const buffer = new Uint8Array(arrayBuffer)
+          const buffer = new Uint8Array(arrayBuffer) // Create file path from file name
 
-          // Create file path from file name
           const ext = file.name.split('.').pop() || 'jpg'
           const filename = `avatar_${currentUser.id}_${Date.now()}.${ext}`
 
@@ -573,9 +545,8 @@ export const useUserStore = create<UserState>()(
           console.error('Upload avatar error:', error)
           throw error
         }
-      },
+      }, // Follow user
 
-      // Follow user
       followUser: async (_userId: string) => {
         const { currentUser } = get()
         if (!currentUser) return
@@ -586,9 +557,8 @@ export const useUserStore = create<UserState>()(
             following: currentUser.following + 1,
           },
         })
-      },
+      }, // Unfollow user
 
-      // Unfollow user
       unfollowUser: async (_userId: string) => {
         const { currentUser } = get()
         if (!currentUser) return

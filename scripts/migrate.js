@@ -4,7 +4,7 @@ const fs = require('fs')
 
 // Get database path from environment or use default
 const dbDir = process.env.APPDATA || process.env.HOME || ''
-const dbPath = path.join(dbDir, 'AudioProjectManager', 'prisma')
+const dbPath = path.join(dbDir, 'Sketchy', 'prisma')
 
 // Ensure directory exists
 if (!fs.existsSync(dbPath)) {
@@ -19,9 +19,9 @@ console.log(`Database path: ${process.env.DATABASE_URL}`)
 // Run Prisma migration
 try {
   console.log('Running Prisma migrations...')
-  execSync('prisma migrate deploy', { 
+  execSync('prisma migrate deploy', {
     stdio: 'inherit',
-    env: process.env
+    env: process.env,
   })
   console.log('Migrations completed successfully!')
 } catch (error) {

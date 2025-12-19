@@ -60,7 +60,8 @@ const PasswordScreen = ({ onSubmit, error, loading }: PasswordScreenProps) => {
 }
 
 // 2. Audio Player (Dành cho Track View)
-const SharedTrackPlayer = ({ track }: { track: Record<string, unknown> }) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const SharedTrackPlayer = ({ track }: { track: any }) => {
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -118,9 +119,12 @@ const SharedTrackPlayer = ({ track }: { track: Record<string, unknown> }) => {
 
       {/* Info */}
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">{track.name}</h1>
+        <h1 className="text-3xl font-bold">{String(track.name || 'Untitled')}</h1>
         <p className="text-muted-foreground font-medium">
-          Last updated {formatDistanceToNow(new Date(track.updatedAt), { addSuffix: true })}
+          Last updated{' '}
+          {formatDistanceToNow(new Date((track.updatedAt as number) || Date.now()), {
+            addSuffix: true,
+          })}
         </p>
       </div>
 
@@ -192,7 +196,8 @@ const SharedTrackPlayer = ({ track }: { track: Record<string, unknown> }) => {
 }
 
 // 3. Project View (Dành cho Project/Folder View)
-const SharedProjectView = ({ project }: { project: Record<string, unknown> }) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const SharedProjectView = ({ project }: { project: any }) => {
   return (
     <div className="max-w-4xl mx-auto w-full space-y-6 animate-in fade-in">
       {/* Header */}
@@ -202,9 +207,9 @@ const SharedProjectView = ({ project }: { project: Record<string, unknown> }) =>
             <Folder className="h-5 w-5" />
             <span className="text-sm font-medium uppercase tracking-wider">Shared Project</span>
           </div>
-          <h1 className="text-4xl font-bold">{project.name}</h1>
+          <h1 className="text-4xl font-bold">{String(project.name || 'Untitled')}</h1>
           <p className="mt-2 text-muted-foreground">
-            {project.tracks?.length || 0} tracks • {project.folders?.length || 0} folders
+            {(project.tracks || []).length} tracks • {(project.folders || []).length} folders
           </p>
         </div>
         <Button variant="outline" className="gap-2">
@@ -215,9 +220,7 @@ const SharedProjectView = ({ project }: { project: Record<string, unknown> }) =>
       {/* Content List */}
       <div className="space-y-2">
         {/* Folders List */}
-        {(
-          project.folders as Array<{ id: string; name: string; tracks?: unknown[] }> | undefined
-        )?.map((folder) => (
+        {(project.folders || []).map((folder: any) => (
           <div
             key={folder.id}
             className="flex items-center gap-4 p-4 rounded-apple bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group"
@@ -226,18 +229,14 @@ const SharedProjectView = ({ project }: { project: Record<string, unknown> }) =>
               <Folder className="h-6 w-6" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold">{folder.name}</h3>
-              <p className="text-sm text-muted-foreground">{folder.tracks?.length || 0} items</p>
+              <h3 className="font-semibold">{String(folder.name || 'Untitled')}</h3>
+              <p className="text-sm text-muted-foreground">{(folder.tracks || []).length} items</p>
             </div>
           </div>
         ))}
 
         {/* Tracks List */}
-        {(
-          project.tracks as
-            | Array<{ id: string; title?: string; artist?: string; duration?: number }>
-            | undefined
-        )?.map((track) => (
+        {(project.tracks || []).map((track: any) => (
           <div
             key={track.id}
             className="flex items-center gap-4 p-3 rounded-apple hover:bg-muted/50 transition-colors group border border-transparent hover:border-border"
@@ -247,11 +246,13 @@ const SharedProjectView = ({ project }: { project: Record<string, unknown> }) =>
             </Button>
 
             <div className="flex-1 min-w-0">
-              <h3 className="font-medium truncate">{track.name}</h3>
+              <h3 className="font-medium truncate">
+                {String(track.name || track.title || 'Untitled')}
+              </h3>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
-                  {new Date(track.updatedAt).toLocaleDateString()}
+                  {new Date(track.updatedAt || Date.now()).toLocaleDateString()}
                 </span>
                 <span>•</span>
                 <span>Ver {track.latestVersion?.versionNumber || 1}</span>
@@ -266,7 +267,7 @@ const SharedProjectView = ({ project }: { project: Record<string, unknown> }) =>
           </div>
         ))}
 
-        {!project.tracks?.length && !project.folders?.length && (
+        {!(project.tracks || []).length && !(project.folders || []).length && (
           <div className="text-center py-12 text-muted-foreground">This project is empty.</div>
         )}
       </div>
@@ -357,7 +358,7 @@ export function SharedPageView() {
         {'folders' in sharedContent ? (
           <SharedProjectView project={sharedContent} />
         ) : (
-          <SharedTrackPlayer track={sharedContent} />
+          <SharedTrackPlayer track={sharedContent as any} />
         )}
       </div>
     </div>

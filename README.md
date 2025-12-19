@@ -1,4 +1,4 @@
-# Audio Project Manager - Sketchy
+# Sketchy
 
 > **Ứng dụng quản lý dự án âm thanh chuyên nghiệp** - Tổ chức, phát nhạc, và chỉnh sửa audio một cách dễ dàng.
 
@@ -10,7 +10,7 @@
 
 ## 📖 Giới thiệu
 
-**Audio Project Manager (Sketchy)** là ứng dụng desktop giúp bạn quản lý các dự án âm nhạc và audio một cách chuyên nghiệp. Dù bạn là nhạc sĩ, producer, podcaster hay đơn giản là người yêu thích âm nhạc - ứng dụng này sẽ giúp bạn tổ chức và làm việc với files audio hiệu quả hơn.
+**Sketchy** là ứng dụng desktop giúp bạn quản lý các dự án âm nhạc và audio một cách chuyên nghiệp. Dù bạn là nhạc sĩ, producer, podcaster hay đơn giản là người yêu thích âm nhạc - ứng dụng này sẽ giúp bạn tổ chức và làm việc với files audio hiệu quả hơn.
 
 ### ✨ Tính năng nổi bật
 
@@ -32,20 +32,20 @@
 
 ### Windows
 
-1. Tải file `Audio-Project-Manager-Setup.exe` từ [Releases](https://github.com/yourrepo/releases)
+1. Tải file `Sketchy-Setup.exe` từ [Releases](https://github.com/yourrepo/releases)
 2. Chạy installer và làm theo hướng dẫn
 3. Mở ứng dụng từ Start Menu hoặc Desktop
 
 ### macOS
 
-1. Tải file `Audio-Project-Manager.dmg`
+1. Tải file `Sketchy.dmg`
 2. Kéo ứng dụng vào thư mục Applications
 3. Mở từ Launchpad hoặc Applications folder
 
 ### Linux
 
 1. Tải file `.AppImage` hoặc `.deb`
-2. Cấp quyền thực thi: `chmod +x Audio-Project-Manager.AppImage`
+2. Cấp quyền thực thi: `chmod +x Sketchy.AppImage`
 3. Chạy ứng dụng
 
 ### Yêu cầu hệ thống
@@ -153,7 +153,7 @@ Tính năng tách stems sử dụng AI model **Demucs** để phân tách audio 
 Mở PowerShell và chạy:
 
 ```powershell
-cd "C:\Users\[TênBạn]\AppData\Local\Programs\AudioProjectManager"
+cd "C:\Users\[TênBạn]\AppData\Local\Programs\Sketchy"
 .\check-demucs.bat
 ```
 
@@ -255,9 +255,9 @@ Trong ứng dụng:
 A: Tùy thuộc vào chế độ lưu trữ:
 
 - **Copy mode**: Files được copy vào thư mục app data:
-  - Windows: `%APPDATA%/AudioProjectManager/`
-  - macOS: `~/Library/Application Support/AudioProjectManager/`
-  - Linux: `~/.config/AudioProjectManager/`
+  - Windows: `%APPDATA%/Sketchy/`
+  - macOS: `~/Library/Application Support/Sketchy/`
+  - Linux: `~/.config/Sketchy/`
 - **Reference mode**: App chỉ lưu đường dẫn, file gốc vẫn ở vị trí ban đầu
 
 **Q: Tôi có thể sync giữa nhiều máy không?**
@@ -289,8 +289,8 @@ Nếu bạn gặp lỗi hoặc có câu hỏi:
    - Screenshots/videos nếu có
    - Log files
 
-📧 Email: support@audioprojectmanager.com
-🌐 Website: [audioprojectmanager.com](https://audioprojectmanager.com)
+📧 Email: support@sketchy.app
+🌐 Website: [sketchy.app](https://sketchy.app)
 
 ---
 

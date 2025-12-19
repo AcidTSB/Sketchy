@@ -58,7 +58,7 @@ export async function sendVerificationEmail(
       <div class="container">
         <div class="header">
           <h1 style="margin: 0; font-size: 28px;">🎵 Welcome to Sketchy!</h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">Audio Project Manager</p>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">Sketchy</p>
         </div>
         <div class="content">
           <p style="font-size: 16px;">Hi <strong>${name}</strong>,</p>
@@ -80,7 +80,7 @@ export async function sendVerificationEmail(
           <p class="warning">⚠️ If you didn't create an account, please ignore this email.</p>
         </div>
         <div class="footer">
-          <p style="margin: 0;">© ${new Date().getFullYear()} Sketchy - Audio Project Manager</p>
+          <p style="margin: 0;">© ${new Date().getFullYear()} Sketchy</p>
           <p style="margin: 5px 0 0 0; font-size: 12px;">This is an automated email, please do not reply.</p>
         </div>
       </div>
@@ -171,7 +171,7 @@ export async function sendPasswordResetEmail(
           <p><strong>If you didn't request a password reset, please ignore this email.</strong></p>
         </div>
         <div class="footer">
-          <p>© ${new Date().getFullYear()} Sketchy - Audio Project Manager</p>
+          <p>© ${new Date().getFullYear()} Sketchy</p>
           <p>This is an automated email, please do not reply.</p>
         </div>
       </div>

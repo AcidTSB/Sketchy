@@ -124,11 +124,15 @@ async function convertTrack(t: ElectronTrack, projectCoverArt?: string): Promise
     coverArt: projectCoverArt, // Use project cover art
     duration: (t.latestVersion?.durationMs || 0) / 1000, // Convert ms to seconds
     type: 'final', // TODO: Add type field to backend
-    status: (t as { status?: string }).status || 'draft', // Get status from backend
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    status: ((t as any).status as 'draft' | 'review' | 'final' | 'approved') || 'draft',
     waveformData: [], // TODO: Generate waveform
     audioUrl,
     createdAt: new Date(t.createdAt),
-    tags: (t as { tags?: string[] }).tags, // Preserve tags from backend
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tags: (t as any).tags as
+      | { trackId: number; tagId: number; tag: { id: number; name: string } }[]
+      | undefined,
   }
 }
 
@@ -304,8 +308,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (success && data) {
         const updated = convertProject(data)
         set((state) => ({
-          projects: state.projects.map((p) => (p.id === projectId ? updated : p)),
-          currentProject: state.currentProject?.id === projectId ? updated : state.currentProject,
+          projects: state.projects.map((p) => (p.id === String(projectId) ? updated : p)),
+          currentProject:
+            state.currentProject?.id === String(projectId) ? updated : state.currentProject,
           loading: false,
         }))
         notifications.success('Project updated', `"${name}" has been updated`)

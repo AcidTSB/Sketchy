@@ -12,7 +12,7 @@ import * as path from 'path'
 export function registerVersionHandlers() {
   // Get app data directory for storing snapshots
   const getAppDataPath = () => {
-    return path.join(app.getPath('appData'), 'AudioProjectManager')
+    return path.join(app.getPath('appData'), 'Sketchy')
   }
 
   // ============================================
