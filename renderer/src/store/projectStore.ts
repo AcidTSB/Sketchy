@@ -31,7 +31,7 @@ interface ProjectStore {
   // Project actions
   loadProjects: () => Promise<void>
   loadProject: (projectId: number) => Promise<void>
-  createProject: (name: string, description?: string) => Promise<void>
+  createProject: (name: string, description?: string, coverArt?: string) => Promise<void>
   updateProject: (projectId: number, name: string, description?: string) => Promise<void>
   deleteProject: (projectId: number) => Promise<void>
   setCurrentProject: (projectId: string | null) => void
@@ -278,10 +278,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
-  createProject: async (name: string, description?: string) => {
+  createProject: async (name: string, description?: string, coverArt?: string) => {
     set({ loading: true, error: null })
     try {
-      const { data, success, error } = await window.electronAPI.createProject({ name, description })
+      const { data, success, error } = await window.electronAPI.createProject({
+        name,
+        description,
+        coverArt,
+      })
       if (success && data) {
         set((state) => ({
           projects: [...state.projects, convertProject(data)],

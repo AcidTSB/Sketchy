@@ -8,6 +8,18 @@ import { useToast } from '@/components/Toast'
 import { useClickOutside } from '@/hooks/useClickOutside'
 import ImageCropModal from './ImageCropModal'
 
+// Helper function to convert blob URL to base64
+const blobUrlToBase64 = async (blobUrl: string): Promise<string> => {
+  const response = await fetch(blobUrl)
+  const blob = await response.blob()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
 export function FloatingAddButton() {
   const [isOpen, setIsOpen] = useState(false)
   const [showProjectModal, setShowProjectModal] = useState(false)
@@ -77,8 +89,14 @@ export function FloatingAddButton() {
     }
 
     try {
-      // Gọi hàm từ Store
-      await createProject(projectName.trim(), projectDesc.trim())
+      // Chuyển blob URL sang base64 nếu có cover art
+      let coverArtBase64 = projectCoverArt
+      if (projectCoverArt && projectCoverArt.startsWith('blob:')) {
+        coverArtBase64 = await blobUrlToBase64(projectCoverArt)
+      }
+
+      // Gọi hàm từ Store với coverArt
+      await createProject(projectName.trim(), projectDesc.trim(), coverArtBase64)
 
       setShowProjectModal(false)
       setProjectName('')
