@@ -57,6 +57,7 @@ model Track {
   key             String?       // Detected musical key (e.g., "Am", "C#")
   latestVersion   FileVersion?  @relation("LatestVersion", fields: [latestVersionId], references: [id])
   versions        FileVersion[] @relation("TrackVersions")
+  duration        Float?        @default(0)
   tags            TrackTag[]
   notes           Note[]
   createdAt       DateTime      @default(now())

@@ -168,7 +168,7 @@ export function TrackItemDraggable({
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             {/* Duration */}
             <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              {formatDuration(track.duration)}
+              {formatDuration((track.duration || 0) * 1000)}
             </span>
 
             {/* Static Tag List */}

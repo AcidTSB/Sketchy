@@ -10,7 +10,8 @@ interface ImportJob {
   folderId?: number
   files: { path: string; name: string }[]
   storageMode: 'copy' | 'reference'
-  userDataPath: string //
+  userDataPath: string
+  userId: number
 }
 
 interface ImportProgress {
@@ -30,10 +31,7 @@ process.on('message', async (job: ImportJob) => {
   try {
     // 3. KHỞI TẠO PRISMA VỚI ĐƯỜNG DẪN CHÍNH XÁC
     if (!prisma) {
-      // Đảm bảo tên file 'dev.db' hoặc 'sketchy.db' khớp với file trong máy bạn
-      // Kiểm tra file schema.prisma xem datasource db provider là "sqlite" url là gì
       const dbPath = path.join(job.userDataPath, 'dev.db')
-
       console.log(`[worker] Connecting to DB at: ${dbPath}`)
 
       prisma = new PrismaClient({
@@ -64,15 +62,14 @@ process.on('message', async (job: ImportJob) => {
 
 process.on('SIGTERM', () => {
   isCancelled = true
-  // Không exit ngay để code có cơ hội dọn dẹp nếu cần,
-  // nhưng thường worker import thì exit luôn cũng được
   process.exit(1)
 })
 
 async function processImport(job: ImportJob) {
-  const { importId, projectId, folderId, files, storageMode, userDataPath } = job
+  // 2. LẤY USER ID TỪ JOB RA
+  const { importId, projectId, folderId, files, storageMode, userDataPath, userId } = job
 
-  // Sử dụng userDataPath chuẩn từ Main gửi xuống thay vì đoán process.env
+  // Sử dụng userDataPath chuẩn từ Main gửi xuống
   const storageBaseDir = path.join(userDataPath, 'projects', String(projectId), 'files')
   await fs.ensureDir(storageBaseDir)
 
@@ -107,7 +104,6 @@ async function processImport(job: ImportJob) {
       let needsCopy = false
 
       if (existingVersion && existingVersion.storedPath && storageMode === 'copy') {
-        // Reuse existing stored file
         storedPath = existingVersion.storedPath
       } else if (storageMode === 'copy') {
         needsCopy = true
@@ -121,7 +117,6 @@ async function processImport(job: ImportJob) {
         const tempFileName = `temp-${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`
         const tempPath = path.join(storageBaseDir, tempFileName)
 
-        // Copy to temp location
         await copyFileWithProgress(file.path, tempPath, (progress) => {
           sendProgress(importId, file.name, 50 + progress * 0.3, 'processing')
         })
@@ -135,12 +130,19 @@ async function processImport(job: ImportJob) {
       const metadata = await extractMetadata(file.path)
       sendProgress(importId, file.name, 90, 'processing')
 
+      // =========================================================
+      // 👇 ĐOẠN CODE QUAN TRỌNG ĐÃ ĐƯỢC THÊM 👇
+      // Tính thời lượng (giây) từ metadata (ms)
+      const durationSec = metadata.durationMs ? metadata.durationMs / 1000 : 0
+      // =========================================================
+
       // Step 6: Create track and file version
       const track = await prisma.track.create({
         data: {
           projectId,
           folderId: folderId ?? null,
           title: path.basename(file.name, path.extname(file.name)),
+          duration: durationSec, // <--- LƯU DURATION VÀO DB TẠI ĐÂY
         },
       })
 
@@ -164,29 +166,27 @@ async function processImport(job: ImportJob) {
         data: { latestVersionId: fileVersion.id },
       })
 
-      // Emit file imported event for notifications
-      const project = await prisma.project.findUnique({ where: { id: projectId } })
-      if (project) {
-        sendAppEvent('file:imported', {
-          userId: project.userId,
-          entityType: 'file',
-          entityId: fileVersion.id,
-          action: 'import',
-          metadata: {
-            fileName: file.name,
-            trackId: track.id,
-            trackName: track.title,
-          },
-        })
-      }
+      // Emit file imported event
+      // Lưu ý: Worker không truy cập trực tiếp được prisma.project ở process cha một cách an toàn để emit event qua bus
+      // nên ta gửi message về main process để main process emit
+      sendAppEvent('file:imported', {
+        userId: userId, // <--- 3. GỬI userId này để NotificationService biết
+        entityType: 'file',
+        entityId: fileVersion.id,
+        action: 'import',
+        metadata: {
+          fileName: file.name,
+          trackId: track.id,
+          trackName: track.title,
+        },
+      })
 
-      // Rename temp file to final name with fileVersionId
+      // Rename temp file to final name
       if (needsCopy && storedPath) {
         const ext = path.extname(file.name)
         const finalPath = path.join(storageBaseDir, `${fileVersion.id}${ext}`)
         await fs.rename(storedPath, finalPath)
 
-        // Update stored path in database
         await prisma.fileVersion.update({
           where: { id: fileVersion.id },
           data: { storedPath: finalPath },
@@ -195,15 +195,15 @@ async function processImport(job: ImportJob) {
 
       sendProgress(importId, file.name, 100, 'done')
     } catch (error) {
-      console.error(`[worker] Error processing file ${file.name}:`, error) // Log chi tiết ra stderr
+      console.error(`[worker] Error processing file ${file.name}:`, error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       sendProgress(importId, file.name, 0, 'error', errorMessage)
     }
   }
 }
 
-// ... (Giữ nguyên các hàm helper computeChecksum, copyFileWithProgress, extractMetadata, sendAppEvent, sendProgress bên dưới)
-// Nhớ copy lại các hàm đó vào đây nhé, tôi không paste lại để tiết kiệm chỗ
+// --- Helper functions ---
+
 async function computeChecksum(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash('sha256')
@@ -246,7 +246,6 @@ async function extractMetadata(filePath: string) {
   const stat = await fs.stat(filePath)
 
   try {
-    // music-metadata v7 is CommonJS compatible
     const metadata = await mm.parseFile(filePath)
 
     return {
@@ -265,7 +264,6 @@ async function extractMetadata(filePath: string) {
     }
   } catch (error) {
     console.error('[worker] Failed to extract metadata, using fallback:', error)
-    // Fallback to basic metadata if music-metadata fails
     return {
       sizeBytes: stat.size,
       mimeType: getMimeTypeFromExtension(filePath),

@@ -151,6 +151,7 @@ exports.Prisma.TrackScalarFieldEnum = {
   stemType: 'stemType',
   bpm: 'bpm',
   key: 'key',
+  duration: 'duration',
   createdAt: 'createdAt'
 };
 

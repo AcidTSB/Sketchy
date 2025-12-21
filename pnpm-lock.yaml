@@ -260,6 +260,9 @@ importers:
       audio-decode:
         specifier: ^2.2.3
         version: 2.2.3
+      axios:
+        specifier: ^1.13.2
+        version: 1.13.2
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

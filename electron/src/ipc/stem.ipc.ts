@@ -5,6 +5,7 @@ import { existsSync } from 'fs'
 import { spawn, ChildProcess } from 'child_process'
 import { v4 as uuidv4 } from 'uuid'
 import { prisma } from '../db/client'
+import * as mm from 'music-metadata' // <--- ĐÃ THÊM IMPORT
 
 export interface StemExtractionOptions {
   trackId: number
@@ -65,8 +66,8 @@ async function extractStems(
     }
 
     // 2. Create output directory
-    const appDataRoot = app.getPath('appData') // Lấy đường dẫn C:\Users\ADMIN\AppData\Roaming
-    const correctAppDir = 'Sketchy' // Tên thư mục mà server của bạn cho phép
+    const appDataRoot = app.getPath('appData')
+    const correctAppDir = 'Sketchy'
 
     const projectStemsPath = path.join(
       appDataRoot,
@@ -142,9 +143,9 @@ async function processStems(
   permanentStems: { stem: string; trackId: number; path: string }[]
   temporaryStems: { stem: string; path: string }[]
 }> {
-  const { extractionId, trackId, stems, track } = options // <-- 'track' sẽ được dùng
-  let stderrData = '' // BIẾN MỚI: Để lưu trữ tất cả lỗi từ Python
-  let processingError: Error | null = null // Biến để lưu lỗi từ stdout
+  const { extractionId, trackId, stems, track } = options
+  let stderrData = ''
+  let processingError: Error | null = null
 
   try {
     // Determine if running in packaged app or development
@@ -152,11 +153,9 @@ async function processStems(
     let args: string[]
 
     if (app.isPackaged) {
-      // PRODUCTION MODE: Use bundled Python executable
-      // The .exe file will be in process.resourcesPath (copied by electron-builder)
+      // PRODUCTION MODE
       command = path.join(process.resourcesPath, 'demucs_engine.exe')
 
-      // Check if bundled executable exists
       if (!existsSync(command)) {
         throw new Error(
           `Python executable not found at: ${command}\n\n` +
@@ -164,23 +163,19 @@ async function processStems(
         )
       }
 
-      // For standalone .exe, pass arguments directly (no script path needed)
       args = [options.inputFilePath, options.outputDir, JSON.stringify(stems)]
-
       console.log('[STEM] Running in PRODUCTION mode with bundled executable:', command)
     } else {
-      // DEVELOPMENT MODE: Use Python script
+      // DEVELOPMENT MODE
       const pythonPath = 'python'
       const scriptPath = path.join(__dirname, '../../scripts/demucs_separate.py')
 
-      // Check if script exists
       if (!existsSync(scriptPath)) {
         throw new Error(`Python script not found at: ${scriptPath}`)
       }
 
       command = pythonPath
       args = [scriptPath, options.inputFilePath, options.outputDir, JSON.stringify(stems)]
-
       console.log('[STEM] Running in DEVELOPMENT mode with Python script:', scriptPath)
     }
 
@@ -190,7 +185,6 @@ async function processStems(
       throw new Error('Extraction cancelled by user')
     }
 
-    // Send initial progress
     sendProgress(mainWindow, {
       extractionId,
       trackId,
@@ -200,14 +194,10 @@ async function processStems(
       message: 'Starting stem separation...',
     })
 
-    // Spawn process
-    // In production: spawn the .exe directly
-    // In development: try 'python' then 'py' as fallback
     let demucsProcess: ChildProcess | null = null
     let lastSpawnError: Error | null = null
 
     if (app.isPackaged) {
-      // Production: Just spawn the bundled .exe
       try {
         demucsProcess = spawn(command, args, {
           env: { ...process.env },
@@ -218,11 +208,10 @@ async function processStems(
         console.error('[STEM] Failed to spawn bundled executable:', lastSpawnError)
       }
     } else {
-      // Development: Try 'python' then 'py'
       const trySpawn = (exe: string): { proc: ChildProcess | null; error: Error | null } => {
         try {
           const p = spawn(exe, args, {
-            cwd: path.dirname(args[0]), // args[0] is scriptPath in dev mode
+            cwd: path.dirname(args[0]),
             env: { ...process.env },
           })
           return { proc: p, error: null }
@@ -231,7 +220,7 @@ async function processStems(
         }
       }
 
-      const candidates = [command, 'py'] // command is 'python' in dev mode
+      const candidates = [command, 'py']
       for (const exe of candidates) {
         const res = trySpawn(exe)
         if (res.proc) {
@@ -245,7 +234,6 @@ async function processStems(
     }
 
     if (!demucsProcess) {
-      // Could not spawn process
       const errorMsg = app.isPackaged
         ? `Failed to start stem separation engine.\n\nThe bundled Python executable could not be started.\nPlease reinstall the application.`
         : `Could not start Python. Make sure Python is installed and available on PATH (try "python --version" in terminal).`
@@ -262,7 +250,6 @@ async function processStems(
       throw new Error('Failed to spawn stem separation process')
     }
 
-    // Store process for cancellation
     if (extraction) {
       extraction.process = demucsProcess
     }
@@ -270,7 +257,6 @@ async function processStems(
     let outputBuffer = ''
     const createdStems: { stem: string; path: string }[] = []
 
-    // Handle stdout (progress and results)
     demucsProcess.stdout?.on('data', (data: Buffer) => {
       const message = data.toString()
       outputBuffer += message
@@ -304,9 +290,8 @@ async function processStems(
           } else if (parsed.type === 'stem_complete') {
             createdStems.push({ stem: parsed.stem, path: parsed.path })
           } else if (parsed.success === false) {
-            // Đừng throw, hãy gán lỗi và kill process
             processingError = new Error(parsed.error || 'Demucs separation failed')
-            demucsProcess.kill() // Buộc process đóng lại
+            demucsProcess?.kill()
           }
         } catch (e) {
           console.warn('[MAIN] Failed to parse Demucs output line as JSON:', line, e)
@@ -314,33 +299,24 @@ async function processStems(
       }
     })
 
-    // Handle stderr
     demucsProcess.stderr?.on('data', (data: Buffer) => {
       const message = data.toString()
       console.error('!!!!!!!! [MAIN] LỖI TỪ PYTHON (stderr) !!!!!!!!:', message)
-      stderrData += message // QUAN TRỌNG: Lưu lại lỗi
+      stderrData += message
     })
 
-    // Wait for process to complete
     await new Promise<void>((resolve, reject) => {
-      demucsProcess.on('close', (code: number | null) => {
-        // Ưu tiên lỗi processingError
+      demucsProcess?.on('close', (code: number | null) => {
         if (processingError) {
           reject(processingError)
         } else if (code === 0) {
           resolve()
         } else {
-          // Map common error codes to user-friendly messages
           let errorMessage = stderrData.trim()
 
           if (code === 3221225477 || code === -1073741819) {
-            // 0xC0000005 = Access Violation (Windows)
             errorMessage =
-              'Demucs crashed with Access Violation (0xC0000005). This usually means:\n' +
-              '1. Missing Visual C++ Redistributables\n' +
-              '2. Incorrect Python/torch installation\n' +
-              '3. Insufficient memory\n\n' +
-              'See STEM_SEPARATION_SETUP.md for installation instructions.'
+              'Demucs crashed with Access Violation (0xC0000005). See STEM_SEPARATION_SETUP.md.'
           } else if (code === 1) {
             errorMessage =
               errorMessage ||
@@ -353,30 +329,24 @@ async function processStems(
         }
       })
 
-      demucsProcess.on('error', (error: Error & { code?: string }) => {
+      demucsProcess?.on('error', (error: Error & { code?: string }) => {
         console.error('!!!!!!!! [MAIN] Demucs process spawn error !!!!!!!!', error)
-
-        // User-friendly error messages
         let errorMessage = error.message
         if (error.code === 'ENOENT') {
           errorMessage =
             'Python executable not found. Please install Python 3.8+ and add it to PATH.'
         }
-
         reject(new Error(errorMessage))
       })
     })
 
-    // Create database entries for each stem
     const permanentStems: { stem: string; trackId: number; path: string }[] = []
     const temporaryStems: { stem: string; path: string }[] = []
 
-    // Separate permanent vs temporary stems
     for (const { stem, path: stemPath } of createdStems) {
       const isPermanent = stems.includes(stem)
 
       if (isPermanent) {
-        // Save to database (permanent)
         sendProgress(mainWindow, {
           extractionId,
           trackId,
@@ -386,17 +356,30 @@ async function processStems(
           message: `Saving ${stem} to database...`,
         })
 
-        // Create track entry
+        // ========================================================
+        // ĐOẠN CODE ĐÃ THÊM: Lấy thời lượng file Stem
+        // ========================================================
+        let durationSec = 0
+        try {
+          // Đọc duration từ file WAV vừa tách
+          const metadata = await mm.parseFile(stemPath)
+          durationSec = metadata.format.duration || 0
+          console.log(`[STEM] ${stem} duration: ${durationSec}s`)
+        } catch (e) {
+          console.warn(`[STEM] Could not read duration for ${stem}`, e)
+        }
+        // ========================================================
+
         const newTrack = await prisma.track.create({
           data: {
             title: `${track.title} (${stem})`,
             projectId: track.projectId,
             parentTrackId: trackId,
             stemType: stem,
+            duration: durationSec,
           },
         })
 
-        // Create FileVersion entry
         const fileStats = await fs.stat(stemPath)
         const newFileVersion = await prisma.fileVersion.create({
           data: {
@@ -406,10 +389,10 @@ async function processStems(
             storageMode: 'copy',
             mimeType: 'audio/wav',
             sizeBytes: fileStats.size,
+            durationMs: Math.round(durationSec * 1000), // <--- LƯU DURATION VÀO VERSION (ms)
           },
         })
 
-        // Update latestVersionId
         await prisma.track.update({
           where: { id: newTrack.id },
           data: { latestVersionId: newFileVersion.id },
@@ -417,7 +400,6 @@ async function processStems(
 
         permanentStems.push({ stem, trackId: newTrack.id, path: stemPath })
       } else {
-        // Move to temporary folder (auto-cleanup on quit)
         const appDataRoot = app.getPath('appData')
         const tempStemsDir = path.join(
           appDataRoot,
@@ -436,7 +418,6 @@ async function processStems(
       }
     }
 
-    // Send completion
     sendProgress(mainWindow, {
       extractionId,
       trackId,
@@ -446,7 +427,6 @@ async function processStems(
       message: `Extracted ${permanentStems.length} permanent + ${temporaryStems.length} temporary stems`,
     })
 
-    // Clean up
     activeExtractions.delete(extractionId)
 
     return { permanentStems, temporaryStems }
@@ -458,17 +438,13 @@ async function processStems(
       progress: 0,
       currentStem: '',
       status: 'error',
-      // QUAN TRỌNG: Gửi lỗi thực sự (từ stderr) về UI
       message: error instanceof Error ? error.message : 'Unknown error',
     })
     activeExtractions.delete(extractionId)
-    throw error // Re-throw to propagate to extractStems
+    throw error
   }
 }
 
-/**
- * Cancel stem extraction
- */
 async function cancelExtraction(extractionId: string): Promise<void> {
   const extraction = activeExtractions.get(extractionId)
   if (extraction) {
@@ -480,23 +456,16 @@ async function cancelExtraction(extractionId: string): Promise<void> {
   }
 }
 
-/**
- * Send progress update to renderer
- */
 function sendProgress(mainWindow: BrowserWindow, progress: StemProgress) {
   mainWindow.webContents.send('stem:progress', progress)
 }
 
-/**
- * Register IPC handlers
- */
 export function registerStemHandlers(mainWindow: BrowserWindow) {
-  // Remove old handlers if they exist
   try {
     ipcMain.removeHandler('stem:extract')
     ipcMain.removeHandler('stem:cancel')
   } catch (e) {
-    // Ignore errors if handlers don't exist
+    // Ignore
   }
 
   ipcMain.handle('stem:extract', async (_event, options: StemExtractionOptions) => {

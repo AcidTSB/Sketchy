@@ -1,4 +1,5 @@
 import { ipcMain, app } from 'electron'
+import { getCurrentUserId } from './auth-context' // <--- 1. THÊM IMPORT NÀY
 import { v4 as uuidv4 } from 'uuid'
 import { fork, ChildProcess } from 'child_process'
 import path from 'path'
@@ -16,6 +17,10 @@ export function registerImportHandlers() {
     try {
       const validated = ImportFilesSchema.parse(payload)
       const importId = uuidv4()
+
+      // <--- 2. LẤY USER ID HIỆN TẠI --->
+      const userId = getCurrentUserId()
+      if (!userId) throw new Error('User not authenticated')
 
       log.info({ importId, fileCount: validated.files.length }, 'Starting import')
 
@@ -91,7 +96,8 @@ export function registerImportHandlers() {
       // Send import job to worker
       worker.send({
         importId,
-        userDataPath, // <--- 3. TRUYỀN XUỐNG CHO WORKER
+        userDataPath,
+        userId, // <--- 3. TRUYỀN USER ID XUỐNG WORKER
         ...validated,
       })
       return { success: true, data: { importId } }

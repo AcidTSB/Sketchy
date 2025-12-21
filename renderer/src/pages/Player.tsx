@@ -337,6 +337,9 @@ export function Player() {
   }, [id, currentTrack?.id, setCurrentTrack])
 
   // Load stems (permanent from DB + temporary from temp folder)
+  // Trong file Player.tsx
+
+  // Load stems (permanent from DB + temporary from temp folder)
   const loadTrackStems = useCallback(async () => {
     if (!currentTrack) return
 
@@ -344,21 +347,18 @@ export function Player() {
     try {
       const response = await window.electronAPI.getTrackStems(parseInt(currentTrack.id))
       if (!response.success || !response.data) {
-        // Don't clear playbackStems - keep existing stems if playing
         console.error('[Player] Failed to load stems:', response.error)
         return
       }
 
       setAvailableStems(response.data)
 
-      // Check if we have at least 1 stem
       const totalStems = response.data.permanent.length + response.data.temporary.length
       if (totalStems <= 0) {
-        // Don't clear playbackStems - let MediaPlayer continue with single audio file
         return
       }
 
-      // Build stem URLs and store in projectStore - audioService will use them for playback
+      // Build stem URLs
       const stemUrls: { vocals?: string; drums?: string; bass?: string; other?: string } = {}
 
       response.data.permanent.forEach((stem) => {
@@ -374,13 +374,29 @@ export function Player() {
       })
 
       setPlaybackStems(currentTrack.id, stemUrls)
+
+      // ------------------------------------------------------------------
+      // 👇 ĐÂY LÀ PHẦN QUAN TRỌNG BẠN ĐANG THIẾU 👇
+      // ------------------------------------------------------------------
+      console.log('[Player] Loading stems into Audio Engine...', stemUrls)
+
+      // 1. Ra lệnh cho AudioService tải các file này ngay lập tức
+      await audioService.loadStems(stemUrls, currentTrack.id)
+
+      // 2. Chỉnh volume cho khớp với thanh trượt ngay sau khi tải xong
+      Object.entries(stemVolumes).forEach(([stem, percentage]) => {
+        audioService.setStemVolume(stem as 'vocals' | 'drums' | 'bass' | 'other', percentage)
+      })
+      // ------------------------------------------------------------------
+
       notifySuccess('Stems Ready', `Found ${Object.keys(stemUrls).length} stems for mixing`)
     } catch (error) {
       console.error('[Player] Error loading stems:', error)
+      notifyError('Stem Error', 'Failed to load stems into audio engine')
     } finally {
       setStemsLoading(false)
     }
-  }, [currentTrack, setPlaybackStems])
+  }, [currentTrack, setPlaybackStems, stemVolumes])
 
   // Callbacks
   const handleSave = useCallback(() => {

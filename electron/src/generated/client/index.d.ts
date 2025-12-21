@@ -4780,6 +4780,7 @@ export namespace Prisma {
     latestVersionId: number | null
     parentTrackId: number | null
     bpm: number | null
+    duration: number | null
   }
 
   export type TrackSumAggregateOutputType = {
@@ -4789,6 +4790,7 @@ export namespace Prisma {
     latestVersionId: number | null
     parentTrackId: number | null
     bpm: number | null
+    duration: number | null
   }
 
   export type TrackMinAggregateOutputType = {
@@ -4802,6 +4804,7 @@ export namespace Prisma {
     stemType: string | null
     bpm: number | null
     key: string | null
+    duration: number | null
     createdAt: Date | null
   }
 
@@ -4816,6 +4819,7 @@ export namespace Prisma {
     stemType: string | null
     bpm: number | null
     key: string | null
+    duration: number | null
     createdAt: Date | null
   }
 
@@ -4830,6 +4834,7 @@ export namespace Prisma {
     stemType: number
     bpm: number
     key: number
+    duration: number
     createdAt: number
     _all: number
   }
@@ -4842,6 +4847,7 @@ export namespace Prisma {
     latestVersionId?: true
     parentTrackId?: true
     bpm?: true
+    duration?: true
   }
 
   export type TrackSumAggregateInputType = {
@@ -4851,6 +4857,7 @@ export namespace Prisma {
     latestVersionId?: true
     parentTrackId?: true
     bpm?: true
+    duration?: true
   }
 
   export type TrackMinAggregateInputType = {
@@ -4864,6 +4871,7 @@ export namespace Prisma {
     stemType?: true
     bpm?: true
     key?: true
+    duration?: true
     createdAt?: true
   }
 
@@ -4878,6 +4886,7 @@ export namespace Prisma {
     stemType?: true
     bpm?: true
     key?: true
+    duration?: true
     createdAt?: true
   }
 
@@ -4892,6 +4901,7 @@ export namespace Prisma {
     stemType?: true
     bpm?: true
     key?: true
+    duration?: true
     createdAt?: true
     _all?: true
   }
@@ -4993,6 +5003,7 @@ export namespace Prisma {
     stemType: string | null
     bpm: number | null
     key: string | null
+    duration: number | null
     createdAt: Date
     _count: TrackCountAggregateOutputType | null
     _avg: TrackAvgAggregateOutputType | null
@@ -5026,6 +5037,7 @@ export namespace Prisma {
     stemType?: boolean
     bpm?: boolean
     key?: boolean
+    duration?: boolean
     createdAt?: boolean
     latestVersion?: boolean | Track$latestVersionArgs<ExtArgs>
     versions?: boolean | Track$versionsArgs<ExtArgs>
@@ -5049,6 +5061,7 @@ export namespace Prisma {
     stemType?: boolean
     bpm?: boolean
     key?: boolean
+    duration?: boolean
     createdAt?: boolean
     latestVersion?: boolean | Track$latestVersionArgs<ExtArgs>
     project?: boolean | ProjectDefaultArgs<ExtArgs>
@@ -5067,6 +5080,7 @@ export namespace Prisma {
     stemType?: boolean
     bpm?: boolean
     key?: boolean
+    duration?: boolean
     createdAt?: boolean
   }
 
@@ -5111,6 +5125,7 @@ export namespace Prisma {
       stemType: string | null
       bpm: number | null
       key: string | null
+      duration: number | null
       createdAt: Date
     }, ExtArgs["result"]["track"]>
     composites: {}
@@ -5523,6 +5538,7 @@ export namespace Prisma {
     readonly stemType: FieldRef<"Track", 'String'>
     readonly bpm: FieldRef<"Track", 'Float'>
     readonly key: FieldRef<"Track", 'String'>
+    readonly duration: FieldRef<"Track", 'Float'>
     readonly createdAt: FieldRef<"Track", 'DateTime'>
   }
     
@@ -22362,6 +22378,7 @@ export namespace Prisma {
     stemType: 'stemType',
     bpm: 'bpm',
     key: 'key',
+    duration: 'duration',
     createdAt: 'createdAt'
   };
 
@@ -22834,6 +22851,7 @@ export namespace Prisma {
     stemType?: StringNullableFilter<"Track"> | string | null
     bpm?: FloatNullableFilter<"Track"> | number | null
     key?: StringNullableFilter<"Track"> | string | null
+    duration?: FloatNullableFilter<"Track"> | number | null
     createdAt?: DateTimeFilter<"Track"> | Date | string
     latestVersion?: XOR<FileVersionNullableRelationFilter, FileVersionWhereInput> | null
     versions?: FileVersionListRelationFilter
@@ -22856,6 +22874,7 @@ export namespace Prisma {
     stemType?: SortOrderInput | SortOrder
     bpm?: SortOrderInput | SortOrder
     key?: SortOrderInput | SortOrder
+    duration?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     latestVersion?: FileVersionOrderByWithRelationInput
     versions?: FileVersionOrderByRelationAggregateInput
@@ -22881,6 +22900,7 @@ export namespace Prisma {
     stemType?: StringNullableFilter<"Track"> | string | null
     bpm?: FloatNullableFilter<"Track"> | number | null
     key?: StringNullableFilter<"Track"> | string | null
+    duration?: FloatNullableFilter<"Track"> | number | null
     createdAt?: DateTimeFilter<"Track"> | Date | string
     latestVersion?: XOR<FileVersionNullableRelationFilter, FileVersionWhereInput> | null
     versions?: FileVersionListRelationFilter
@@ -22903,6 +22923,7 @@ export namespace Prisma {
     stemType?: SortOrderInput | SortOrder
     bpm?: SortOrderInput | SortOrder
     key?: SortOrderInput | SortOrder
+    duration?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     _count?: TrackCountOrderByAggregateInput
     _avg?: TrackAvgOrderByAggregateInput
@@ -22925,6 +22946,7 @@ export namespace Prisma {
     stemType?: StringNullableWithAggregatesFilter<"Track"> | string | null
     bpm?: FloatNullableWithAggregatesFilter<"Track"> | number | null
     key?: StringNullableWithAggregatesFilter<"Track"> | string | null
+    duration?: FloatNullableWithAggregatesFilter<"Track"> | number | null
     createdAt?: DateTimeWithAggregatesFilter<"Track"> | Date | string
   }
 
@@ -24332,6 +24354,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     latestVersion?: FileVersionCreateNestedOneWithoutLatestForTrackInput
     versions?: FileVersionCreateNestedManyWithoutTrackInput
@@ -24354,6 +24377,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     versions?: FileVersionUncheckedCreateNestedManyWithoutTrackInput
     tags?: TrackTagUncheckedCreateNestedManyWithoutTrackInput
@@ -24367,6 +24391,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     latestVersion?: FileVersionUpdateOneWithoutLatestForTrackNestedInput
     versions?: FileVersionUpdateManyWithoutTrackNestedInput
@@ -24389,6 +24414,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     versions?: FileVersionUncheckedUpdateManyWithoutTrackNestedInput
     tags?: TrackTagUncheckedUpdateManyWithoutTrackNestedInput
@@ -24407,6 +24433,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
   }
 
@@ -24416,6 +24443,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -24430,6 +24458,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -26095,6 +26124,7 @@ export namespace Prisma {
     stemType?: SortOrder
     bpm?: SortOrder
     key?: SortOrder
+    duration?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -26105,6 +26135,7 @@ export namespace Prisma {
     latestVersionId?: SortOrder
     parentTrackId?: SortOrder
     bpm?: SortOrder
+    duration?: SortOrder
   }
 
   export type TrackMaxOrderByAggregateInput = {
@@ -26118,6 +26149,7 @@ export namespace Prisma {
     stemType?: SortOrder
     bpm?: SortOrder
     key?: SortOrder
+    duration?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -26132,6 +26164,7 @@ export namespace Prisma {
     stemType?: SortOrder
     bpm?: SortOrder
     key?: SortOrder
+    duration?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -26142,6 +26175,7 @@ export namespace Prisma {
     latestVersionId?: SortOrder
     parentTrackId?: SortOrder
     bpm?: SortOrder
+    duration?: SortOrder
   }
 
   export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -28415,6 +28449,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     latestVersion?: FileVersionCreateNestedOneWithoutLatestForTrackInput
     versions?: FileVersionCreateNestedManyWithoutTrackInput
@@ -28435,6 +28470,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     versions?: FileVersionUncheckedCreateNestedManyWithoutTrackInput
     tags?: TrackTagUncheckedCreateNestedManyWithoutTrackInput
@@ -28626,6 +28662,7 @@ export namespace Prisma {
     stemType?: StringNullableFilter<"Track"> | string | null
     bpm?: FloatNullableFilter<"Track"> | number | null
     key?: StringNullableFilter<"Track"> | string | null
+    duration?: FloatNullableFilter<"Track"> | number | null
     createdAt?: DateTimeFilter<"Track"> | Date | string
   }
 
@@ -28732,6 +28769,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     latestVersion?: FileVersionCreateNestedOneWithoutLatestForTrackInput
     versions?: FileVersionCreateNestedManyWithoutTrackInput
@@ -28752,6 +28790,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     versions?: FileVersionUncheckedCreateNestedManyWithoutTrackInput
     tags?: TrackTagUncheckedCreateNestedManyWithoutTrackInput
@@ -29005,6 +29044,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     latestVersion?: FileVersionCreateNestedOneWithoutLatestForTrackInput
     versions?: FileVersionCreateNestedManyWithoutTrackInput
@@ -29026,6 +29066,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     versions?: FileVersionUncheckedCreateNestedManyWithoutTrackInput
     tags?: TrackTagUncheckedCreateNestedManyWithoutTrackInput
@@ -29043,6 +29084,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     latestVersion?: FileVersionCreateNestedOneWithoutLatestForTrackInput
     versions?: FileVersionCreateNestedManyWithoutTrackInput
@@ -29063,6 +29105,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     versions?: FileVersionUncheckedCreateNestedManyWithoutTrackInput
     tags?: TrackTagUncheckedCreateNestedManyWithoutTrackInput
@@ -29291,6 +29334,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     latestVersion?: FileVersionUpdateOneWithoutLatestForTrackNestedInput
     versions?: FileVersionUpdateManyWithoutTrackNestedInput
@@ -29312,6 +29356,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     versions?: FileVersionUncheckedUpdateManyWithoutTrackNestedInput
     tags?: TrackTagUncheckedUpdateManyWithoutTrackNestedInput
@@ -29340,6 +29385,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     latestVersion?: FileVersionCreateNestedOneWithoutLatestForTrackInput
     tags?: TrackTagCreateNestedManyWithoutTrackInput
@@ -29361,6 +29407,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     tags?: TrackTagUncheckedCreateNestedManyWithoutTrackInput
     notes?: NoteUncheckedCreateNestedManyWithoutTrackInput
@@ -29378,6 +29425,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     versions?: FileVersionCreateNestedManyWithoutTrackInput
     tags?: TrackTagCreateNestedManyWithoutTrackInput
@@ -29398,6 +29446,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     versions?: FileVersionUncheckedCreateNestedManyWithoutTrackInput
     tags?: TrackTagUncheckedCreateNestedManyWithoutTrackInput
@@ -29427,6 +29476,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     latestVersion?: FileVersionUpdateOneWithoutLatestForTrackNestedInput
     tags?: TrackTagUpdateManyWithoutTrackNestedInput
@@ -29448,6 +29498,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     tags?: TrackTagUncheckedUpdateManyWithoutTrackNestedInput
     notes?: NoteUncheckedUpdateManyWithoutTrackNestedInput
@@ -29471,6 +29522,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     versions?: FileVersionUpdateManyWithoutTrackNestedInput
     tags?: TrackTagUpdateManyWithoutTrackNestedInput
@@ -29491,6 +29543,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     versions?: FileVersionUncheckedUpdateManyWithoutTrackNestedInput
     tags?: TrackTagUncheckedUpdateManyWithoutTrackNestedInput
@@ -29537,6 +29590,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     latestVersion?: FileVersionCreateNestedOneWithoutLatestForTrackInput
     versions?: FileVersionCreateNestedManyWithoutTrackInput
@@ -29558,6 +29612,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     versions?: FileVersionUncheckedCreateNestedManyWithoutTrackInput
     notes?: NoteUncheckedCreateNestedManyWithoutTrackInput
@@ -29600,6 +29655,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     latestVersion?: FileVersionUpdateOneWithoutLatestForTrackNestedInput
     versions?: FileVersionUpdateManyWithoutTrackNestedInput
@@ -29621,6 +29677,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     versions?: FileVersionUncheckedUpdateManyWithoutTrackNestedInput
     notes?: NoteUncheckedUpdateManyWithoutTrackNestedInput
@@ -29653,6 +29710,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     latestVersion?: FileVersionCreateNestedOneWithoutLatestForTrackInput
     versions?: FileVersionCreateNestedManyWithoutTrackInput
@@ -29674,6 +29732,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
     versions?: FileVersionUncheckedCreateNestedManyWithoutTrackInput
     tags?: TrackTagUncheckedCreateNestedManyWithoutTrackInput
@@ -29702,6 +29761,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     latestVersion?: FileVersionUpdateOneWithoutLatestForTrackNestedInput
     versions?: FileVersionUpdateManyWithoutTrackNestedInput
@@ -29723,6 +29783,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     versions?: FileVersionUncheckedUpdateManyWithoutTrackNestedInput
     tags?: TrackTagUncheckedUpdateManyWithoutTrackNestedInput
@@ -30991,6 +31052,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
   }
 
@@ -31033,6 +31095,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     latestVersion?: FileVersionUpdateOneWithoutLatestForTrackNestedInput
     versions?: FileVersionUpdateManyWithoutTrackNestedInput
@@ -31053,6 +31116,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     versions?: FileVersionUncheckedUpdateManyWithoutTrackNestedInput
     tags?: TrackTagUncheckedUpdateManyWithoutTrackNestedInput
@@ -31070,6 +31134,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -31132,6 +31197,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
   }
 
@@ -31141,6 +31207,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     latestVersion?: FileVersionUpdateOneWithoutLatestForTrackNestedInput
     versions?: FileVersionUpdateManyWithoutTrackNestedInput
@@ -31161,6 +31228,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     versions?: FileVersionUncheckedUpdateManyWithoutTrackNestedInput
     tags?: TrackTagUncheckedUpdateManyWithoutTrackNestedInput
@@ -31178,6 +31246,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -31216,6 +31285,7 @@ export namespace Prisma {
     stemType?: string | null
     bpm?: number | null
     key?: string | null
+    duration?: number | null
     createdAt?: Date | string
   }
 
@@ -31300,6 +31370,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     latestVersion?: FileVersionUpdateOneWithoutLatestForTrackNestedInput
     versions?: FileVersionUpdateManyWithoutTrackNestedInput
@@ -31320,6 +31391,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     versions?: FileVersionUncheckedUpdateManyWithoutTrackNestedInput
     tags?: TrackTagUncheckedUpdateManyWithoutTrackNestedInput
@@ -31337,6 +31409,7 @@ export namespace Prisma {
     stemType?: NullableStringFieldUpdateOperationsInput | string | null
     bpm?: NullableFloatFieldUpdateOperationsInput | number | null
     key?: NullableStringFieldUpdateOperationsInput | string | null
+    duration?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
