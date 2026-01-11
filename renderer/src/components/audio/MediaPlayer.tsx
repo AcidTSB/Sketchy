@@ -272,6 +272,14 @@ export function MediaPlayer() {
   // Load audio when track changes - Always sync state from audioService
   useEffect(() => {
     if (!currentTrack?.audioUrl) return
+
+    // IMPORTANT: If we're on the Player page, Player component handles audio loading
+    // MediaPlayer should NOT interfere to avoid race conditions
+    if (isOnPlayerPage) {
+      console.log('[MediaPlayer] On Player page - skipping auto-load, Player controls audio')
+      return
+    }
+
     hasAutoPlayedRef.current = false
 
     const loadAudio = async () => {

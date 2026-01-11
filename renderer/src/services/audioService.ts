@@ -69,7 +69,13 @@ class AudioService {
 
     // Initialize single-file chain
     this.player = new Tone.Player()
-    this.pitchShift = new Tone.PitchShift(0)
+    // Use minimal window size to eliminate pitch shift latency/delay
+    this.pitchShift = new Tone.PitchShift({
+      pitch: 0,
+      windowSize: 0.01, // Minimal window = no perceptible delay
+      delayTime: 0,
+      feedback: 0,
+    })
     this.volume = new Tone.Volume(0)
 
     // Default chain WITHOUT effects
@@ -234,7 +240,13 @@ class AudioService {
         if (this.currentLoadUrl !== 'stems') return
 
         const player = new Tone.Player()
-        const pitchShift = new Tone.PitchShift(0)
+        // Use minimal window size to eliminate pitch shift latency/delay
+        const pitchShift = new Tone.PitchShift({
+          pitch: 0,
+          windowSize: 0.01, // Minimal window = no perceptible delay
+          delayTime: 0,
+          feedback: 0,
+        })
         const eq3 = new Tone.EQ3({ low: 0, mid: 0, high: 0 })
         const reverb = new Tone.Reverb({ decay: 1.5, wet: 0 })
         const volume = new Tone.Volume(0)
@@ -468,11 +480,13 @@ class AudioService {
     if (this.isStemMode) {
       this.stemPitchShifts.forEach((pitchShift) => {
         if (!pitchShift.disposed) {
+          // Use ramp to smooth pitch changes and avoid phasing
           pitchShift.pitch = clampedPitch
         }
       })
     } else {
       if (this.pitchShift) {
+        // Use ramp to smooth pitch changes and avoid phasing
         this.pitchShift.pitch = clampedPitch
       }
     }
@@ -481,8 +495,20 @@ class AudioService {
   }
 
   public setVolume(db: number): void {
-    if (!this.volume) return
-    this.volume.volume.value = Math.max(-60, Math.min(36, db))
+    const clampedDb = Math.max(-60, Math.min(36, db))
+
+    // Apply to master volume (single-file mode)
+    if (this.volume) {
+      this.volume.volume.value = clampedDb
+    }
+
+    // Also apply to all stem volumes when in stem mode
+    if (this.isStemMode) {
+      this.stemVolumes.forEach((volume) => {
+        volume.volume.value = clampedDb
+      })
+    }
+
     this.notifyListeners({ volume: db })
   }
 

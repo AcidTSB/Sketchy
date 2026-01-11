@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Check, History, Tag } from 'lucide-react'
+import { Check, History, Tag, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatDistanceToNow } from 'date-fns'
@@ -48,14 +48,35 @@ export function VersionHistory({
     }
   }
 
-  const handleUpdateLabel = async (_versionId: number) => {
+  const handleUpdateLabel = async (versionId: number) => {
     try {
-      // Note: Need to add updateFileVersionLabel API in backend
-      // For now, just close the edit mode
-      setEditingLabelId(null)
-      setLabelValue('')
+      const response = await window.electronAPI.updateFileVersionLabel(versionId, labelValue)
+      if (response.success) {
+        await loadVersions()
+        setEditingLabelId(null)
+        setLabelValue('')
+      }
     } catch (error) {
       console.error('Failed to update label:', error)
+    }
+  }
+
+  const handleDeleteVersion = async (versionId: number) => {
+    if (!confirm('Are you sure you want to delete this version? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await window.electronAPI.deleteFileVersion(versionId)
+      if (response.success) {
+        await loadVersions()
+        // If deleted version was current, reload track to use new latest version
+        if (versionId === currentVersionId) {
+          onVersionChange?.(versions.find((v) => v.id !== versionId)?.id || versions[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete version:', error)
     }
   }
 
@@ -169,17 +190,31 @@ export function VersionHistory({
                     </div>
                   </div>
 
-                  {/* Set as Latest Button */}
-                  {!isLatest && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleSetLatestVersion(version.id)}
-                      className="text-xs h-7"
-                    >
-                      Use This
-                    </Button>
-                  )}
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-1">
+                    {!isLatest && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSetLatestVersion(version.id)}
+                        className="text-xs h-7"
+                      >
+                        Use This
+                      </Button>
+                    )}
+                    {/* Only allow delete if not the only version */}
+                    {versions.length > 1 && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteVersion(version.id)}
+                        className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        title="Delete version"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             )

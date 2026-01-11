@@ -86,8 +86,14 @@ export function Player() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { currentTrack, setCurrentTrack, getProjectTracks, loadProject, setPlaybackStems } =
-    useProjectStore()
+  const {
+    currentTrack,
+    setCurrentTrack,
+    getProjectTracks,
+    loadProject,
+    loadTracks,
+    setPlaybackStems,
+  } = useProjectStore()
   const { trackActivity } = useAnalyticsStore()
 
   // State (giữ nguyên)
@@ -263,7 +269,13 @@ export function Player() {
       }
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      // Cleanup debounce timeout on unmount
+      if (pitchTimeoutRef.current) {
+        clearTimeout(pitchTimeoutRef.current)
+      }
+    }
   }, [hasUnsavedChanges])
 
   // Subscribe to audioService - single source of truth for playback state
@@ -332,9 +344,71 @@ export function Player() {
     // Only set current track if it's different from URL param
     // This prevents overriding autoPlay flag from handleNext/handlePrevious
     if (id && currentTrack?.id !== id) {
-      setCurrentTrack(id)
+      // Force reload tracks to ensure we have latest version info
+      const reloadAndSetTrack = async () => {
+        // Get project ID from the tracks in store or fetch track details
+        const tracks = getProjectTracks(id)
+        if (tracks && tracks.length > 0) {
+          const projectId = parseInt(tracks[0].projectId)
+          await loadTracks(projectId)
+        }
+
+        // CRITICAL FIX: Only setCurrentTrack if audioService is NOT already playing this track
+        // This prevents resetting version when navigating to Player page
+        const audioState = audioService.getState()
+        if (audioState.currentTrackId !== id) {
+          console.log('[Player] Setting new track:', id)
+          setCurrentTrack(id)
+        } else {
+          console.log(
+            '[Player] Track already loaded in audioService, skipping setCurrentTrack to preserve version'
+          )
+        }
+      }
+      reloadAndSetTrack()
     }
-  }, [id, currentTrack?.id, setCurrentTrack])
+  }, [id, currentTrack?.id, setCurrentTrack, loadTracks, getProjectTracks])
+
+  // Load single audio file (when no stems available)
+  const loadSingleAudioFile = useCallback(async () => {
+    if (!currentTrack?.id) {
+      console.error('[Player] No track ID found')
+      return
+    }
+
+    try {
+      // Fetch fresh track data to ensure we have latest version
+      console.log('[Player] Fetching fresh track data for audio load')
+      const trackResponse = await window.electronAPI.getTrack(parseInt(currentTrack.id))
+
+      if (!trackResponse.success || !trackResponse.data) {
+        console.error('[Player] Failed to fetch track data')
+        notifyError('Audio Load Failed', 'Could not fetch track data')
+        return
+      }
+
+      const freshTrack = trackResponse.data
+      const filePath =
+        freshTrack.latestVersion?.storedPath || freshTrack.latestVersion?.originalPath
+
+      if (!filePath) {
+        console.error('[Player] No file path found in latest version')
+        notifyError('Audio Load Failed', 'No audio file found')
+        return
+      }
+
+      // Use file server URL
+      const encodedPath = encodeURIComponent(filePath)
+      const audioUrl = `http://localhost:45678?path=${encodedPath}`
+
+      console.log('[Player] Loading single audio file:', audioUrl)
+      await audioService.loadAudio(audioUrl, currentTrack.id, false)
+      console.log('[Player] Single audio file loaded successfully')
+    } catch (error) {
+      console.error('[Player] Failed to load single audio file:', error)
+      notifyError('Audio Load Failed', 'Could not load audio file')
+    }
+  }, [currentTrack])
 
   // Load stems (permanent from DB + temporary from temp folder)
   // Trong file Player.tsx
@@ -345,9 +419,36 @@ export function Player() {
 
     setStemsLoading(true)
     try {
+      // First, fetch fresh track data to ensure we have latest version
+      console.log('[Player] Fetching fresh track data before loading stems')
+      const trackResponse = await window.electronAPI.getTrack(parseInt(currentTrack.id))
+
+      if (!trackResponse.success || !trackResponse.data) {
+        console.error('[Player] Failed to fetch track data')
+        notifyError('Audio Load Failed', 'Could not fetch track data')
+        setStemsLoading(false)
+        return
+      }
+
+      const freshTrack = trackResponse.data
+
+      // CRITICAL FIX: Check if current version is "Edited" - don't use stems from original version
+      // Stems from original version will be out of sync with edited version (different speed/pitch)
+      if (freshTrack.latestVersion?.label?.includes('Edited')) {
+        console.log('[Player] Edited version detected - loading single audio file instead of stems')
+        console.log('[Player] Stems from original version would be out of sync with edited audio')
+        await loadSingleAudioFile()
+        setStemsLoading(false)
+        return
+      }
+
+      // Fresh track data fetched successfully - continue with stem loading
       const response = await window.electronAPI.getTrackStems(parseInt(currentTrack.id))
       if (!response.success || !response.data) {
         console.error('[Player] Failed to load stems:', response.error)
+        // Load single audio file as fallback using fresh track data
+        await loadSingleAudioFile()
+        setStemsLoading(false)
         return
       }
 
@@ -355,6 +456,10 @@ export function Player() {
 
       const totalStems = response.data.permanent.length + response.data.temporary.length
       if (totalStems <= 0) {
+        console.log('[Player] No stems found, loading single audio file')
+        // Load single audio file if no stems using fresh track data
+        await loadSingleAudioFile()
+        setStemsLoading(false)
         return
       }
 
@@ -375,19 +480,15 @@ export function Player() {
 
       setPlaybackStems(currentTrack.id, stemUrls)
 
-      // ------------------------------------------------------------------
-      // 👇 ĐÂY LÀ PHẦN QUAN TRỌNG BẠN ĐANG THIẾU 👇
-      // ------------------------------------------------------------------
       console.log('[Player] Loading stems into Audio Engine...', stemUrls)
 
-      // 1. Ra lệnh cho AudioService tải các file này ngay lập tức
+      // Load stems into audio engine
       await audioService.loadStems(stemUrls, currentTrack.id)
 
-      // 2. Chỉnh volume cho khớp với thanh trượt ngay sau khi tải xong
+      // Apply stem volumes
       Object.entries(stemVolumes).forEach(([stem, percentage]) => {
         audioService.setStemVolume(stem as 'vocals' | 'drums' | 'bass' | 'other', percentage)
       })
-      // ------------------------------------------------------------------
 
       notifySuccess('Stems Ready', `Found ${Object.keys(stemUrls).length} stems for mixing`)
     } catch (error) {
@@ -396,18 +497,122 @@ export function Player() {
     } finally {
       setStemsLoading(false)
     }
-  }, [currentTrack, setPlaybackStems, stemVolumes])
+  }, [currentTrack, setPlaybackStems, stemVolumes, loadSingleAudioFile])
+
+  // State for save operation
+  const [isSaving, setIsSaving] = useState(false)
 
   // Callbacks
-  const handleSave = useCallback(() => {
-    setOriginalValues({
-      speed,
-      pitch,
-      volume,
-      stemVolumes: { ...stemVolumes },
-    })
-    setHasUnsavedChanges(false)
-    notifySuccess('Changes saved', 'Your audio settings have been saved')
+  const handleSave = useCallback(async () => {
+    if (!currentTrack || !trackDetails?.latestVersion) {
+      notifyError('Save Failed', 'No track loaded')
+      return
+    }
+
+    console.log('[Player] Saving changes:', { speed, pitch, volume, stemVolumes })
+
+    // Check if there are any actual changes to effects
+    const hasEffectChanges = speed !== 1.0 || pitch !== 0 || volume !== 0
+
+    if (!hasEffectChanges) {
+      // No effects applied, just save to memory
+      setOriginalValues({
+        speed,
+        pitch,
+        volume,
+        stemVolumes: { ...stemVolumes },
+      })
+      setHasUnsavedChanges(false)
+      notifySuccess('Settings Saved', 'Audio settings saved for this session')
+      return
+    }
+
+    // User has applied effects - export audio with effects as new version
+    try {
+      setIsSaving(true)
+
+      const inputPath =
+        trackDetails.latestVersion.storedPath || trackDetails.latestVersion.originalPath
+
+      if (!inputPath) {
+        notifyError('Export Failed', 'Could not find source file path')
+        return
+      }
+
+      console.log('[Player] Exporting audio with effects...')
+      console.log('[Player] Export params:', {
+        inputPath,
+        trackId: parseInt(currentTrack.id),
+        speed,
+        pitch,
+        volume,
+      })
+
+      const response = await window.electronAPI.exportAudioWithEffects({
+        inputPath,
+        trackId: parseInt(currentTrack.id),
+        speed,
+        pitch,
+        volume,
+        label: `Edited - ${new Date().toLocaleString()}`,
+      })
+
+      console.log('[Player] Export response:', response)
+
+      if (response.success && response.data) {
+        console.log('[Player] Audio exported successfully:', response.data)
+
+        // Stop current playback
+        audioService.stop()
+
+        // Reload project and tracks to get new version with updated audioUrl
+        await loadProject(parseInt(currentTrack.projectId))
+        await loadTracks(parseInt(currentTrack.projectId))
+
+        const updatedTrackResponse = await window.electronAPI.getTrack(parseInt(currentTrack.id))
+
+        if (updatedTrackResponse.success && updatedTrackResponse.data) {
+          setTrackDetails(updatedTrackResponse.data)
+
+          // Reset to default values since we created a new version
+          setSpeed(1.0)
+          setPitch(0)
+          setVolume(0)
+          audioService.setSpeed(1.0)
+          audioService.setPitch(0)
+          audioService.setVolume(0)
+
+          setOriginalValues({
+            speed: 1.0,
+            pitch: 0,
+            volume: 0,
+            stemVolumes: { ...stemVolumes },
+          })
+          setHasUnsavedChanges(false)
+
+          // Force reload by setting currentTrack again
+          // This will trigger the effect that loads stems/audio
+          setCurrentTrack(currentTrack.id)
+
+          notifySuccess(
+            'Version Created',
+            'New version created with effects applied. Effects have been reset to defaults.'
+          )
+        }
+      } else {
+        console.error('[Player] Export failed:', response.error)
+        notifyError('Export Failed', response.error || 'Could not export audio with effects')
+      }
+    } catch (error) {
+      console.error('[Player] Failed to export audio:', error)
+      notifyError(
+        'Export Failed',
+        `An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+    } finally {
+      setIsSaving(false)
+    }
+
     if (showUnsavedDialog) {
       setShowUnsavedDialog(false)
       if (pendingNavigation) {
@@ -417,7 +622,20 @@ export function Player() {
         shouldAllowNavigation.current = false
       }
     }
-  }, [speed, pitch, volume, stemVolumes, showUnsavedDialog, pendingNavigation, navigate])
+  }, [
+    currentTrack,
+    trackDetails,
+    speed,
+    pitch,
+    volume,
+    stemVolumes,
+    showUnsavedDialog,
+    pendingNavigation,
+    navigate,
+    loadProject,
+    loadTracks,
+    setCurrentTrack,
+  ])
 
   const handleDiscard = useCallback(() => {
     setSpeed(originalValues.speed)
@@ -475,10 +693,24 @@ export function Player() {
     setHasUnsavedChanges(true)
   }
 
+  // Debounce timer ref for pitch changes
+  const pitchTimeoutRef = useRef<number | null>(null)
+
   const handlePitchChange = (value: number[]) => {
     const newPitch = value[0]
     setPitch(newPitch)
-    audioService.setPitch(newPitch)
+
+    // Clear previous timeout to debounce rapid slider movements
+    if (pitchTimeoutRef.current) {
+      clearTimeout(pitchTimeoutRef.current)
+    }
+
+    // Debounce pitch changes to avoid buffer overflow and echo
+    pitchTimeoutRef.current = window.setTimeout(() => {
+      audioService.setPitch(newPitch)
+      pitchTimeoutRef.current = null
+    }, 50) // 50ms debounce
+
     setHasUnsavedChanges(true)
   }
 
@@ -708,14 +940,23 @@ export function Player() {
           <Button
             className="gap-2 rounded-apple"
             onClick={handleSave}
-            disabled={!hasUnsavedChanges || !currentTrack}
+            disabled={(!hasUnsavedChanges || !currentTrack) && !isSaving}
             style={{
               backgroundColor: hasUnsavedChanges ? 'var(--primary)' : 'var(--surface)',
               color: hasUnsavedChanges ? 'white' : 'var(--text-secondary)',
             }}
           >
-            <Save className="h-4 w-4" />
-            {hasUnsavedChanges ? 'Save Changes' : 'Saved'}
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                {hasUnsavedChanges ? 'Save Changes' : 'Saved'}
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -1308,9 +1549,76 @@ export function Player() {
                 <VersionHistory
                   trackId={parseInt(currentTrack.id)}
                   currentVersionId={trackDetails.latestVersionId}
-                  onVersionChange={async () => {
-                    // Reload track data when version changes
-                    await loadProject(parseInt(currentTrack.projectId))
+                  onVersionChange={async (versionId) => {
+                    try {
+                      console.log('[Player] Version change requested:', versionId)
+
+                      // Stop current playback first
+                      audioService.stop()
+
+                      // Reload track data when version changes
+                      await loadProject(parseInt(currentTrack.projectId))
+
+                      // Get the updated track with new version
+                      const updatedTrackResponse = await window.electronAPI.getTrack(
+                        parseInt(currentTrack.id)
+                      )
+
+                      if (updatedTrackResponse.success && updatedTrackResponse.data) {
+                        const updatedTrack = updatedTrackResponse.data
+                        console.log('[Player] Updated track loaded:', updatedTrack)
+
+                        // Update track details to show new version
+                        setTrackDetails(updatedTrack)
+
+                        // CRITICAL FIX: Trigger setCurrentTrack to update Store with fresh data
+                        // loadTracks() already updated all tracks, now we just need to set current one
+                        // This ensures currentTrack.audioUrl reflects the new version in Waveform/MediaPlayer
+                        console.log(
+                          '[Player] Updating currentTrack in Store to sync with new version'
+                        )
+                        setCurrentTrack(currentTrack.id)
+
+                        // Get file path from the latest version
+                        const filePath =
+                          updatedTrack.latestVersion?.storedPath ||
+                          updatedTrack.latestVersion?.originalPath
+
+                        if (filePath) {
+                          console.log('[Player] File path:', filePath)
+
+                          // Use file server for loading audio (works with both absolute paths and URLs)
+                          let fileUrl: string
+                          if (filePath.startsWith('http')) {
+                            fileUrl = filePath
+                            console.log('[Player] Using HTTP URL:', fileUrl)
+                          } else {
+                            // Use local file server
+                            const encodedPath = encodeURIComponent(filePath)
+                            fileUrl = `http://localhost:45678?path=${encodedPath}`
+                            console.log('[Player] Using file server URL:', fileUrl)
+                          }
+
+                          console.log('[Player] Calling audioService.loadAudio...')
+                          await audioService.loadAudio(fileUrl, currentTrack.id, false)
+                          console.log('[Player] Audio loaded successfully')
+
+                          notifySuccess(
+                            'Version Changed',
+                            'Audio version updated successfully. Press play to hear the new version.'
+                          )
+                        } else {
+                          console.error('[Player] No file path found for version')
+                          notifyError(
+                            'Version Change Failed',
+                            'Could not find file path for the selected version'
+                          )
+                        }
+                      }
+                    } catch (error) {
+                      console.error('[Player] Failed to change version:', error)
+                      notifyError('Version Change Failed', 'Could not load the selected version')
+                    }
                   }}
                 />
               )}

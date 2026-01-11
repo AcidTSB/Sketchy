@@ -33,7 +33,11 @@ export interface ElectronAPI {
   // File Versions
   getFileVersions: (trackId: number) => Promise<APIResponse<FileVersion[]>>
   setLatestVersion: (trackId: number, versionId: number) => Promise<APIResponse<Track>>
+  updateFileVersionLabel: (versionId: number, label: string) => Promise<APIResponse<FileVersion>>
   deleteFileVersion: (versionId: number) => Promise<APIResponse<void>>
+  exportAudioWithEffects: (
+    payload: ExportAudioWithEffectsDTO
+  ) => Promise<APIResponse<{ outputPath: string }>>
 
   // Playback
   getFilePath: (fileVersionId: number) => Promise<APIResponse<FilePathData>>
@@ -249,6 +253,15 @@ export interface UpdateTrackDTO {
   title?: string
   folderId?: number | null
   status?: string | null // "draft" | "review" | "approved" | "final"
+}
+
+export interface ExportAudioWithEffectsDTO {
+  inputPath: string
+  trackId: number
+  speed?: number // playback rate (0.5 - 2.0)
+  pitch?: number // semitones (-12 to +12)
+  volume?: number // dB (-60 to +36)
+  label?: string // version label
 }
 
 export interface SaveRecordingDTO {

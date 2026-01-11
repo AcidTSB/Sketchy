@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getFileVersions: (trackId: number) => ipcRenderer.invoke('get-file-versions', trackId),
   setLatestVersion: (trackId: number, versionId: number) =>
     ipcRenderer.invoke('set-latest-version', trackId, versionId),
+  updateFileVersionLabel: (versionId: number, label: string) =>
+    ipcRenderer.invoke('update-file-version-label', versionId, label),
   deleteFileVersion: (versionId: number) => ipcRenderer.invoke('delete-file-version', versionId),
   getFilePath: (fileVersionId: number) => ipcRenderer.invoke('get-file-path', fileVersionId),
   extractMetadata: (filePath: string) => ipcRenderer.invoke('extract-metadata', filePath),
@@ -188,6 +190,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getVersionTimeline: (trackId: number) => ipcRenderer.invoke('get-version-timeline', trackId),
   createTrackVersion: (trackId: number, label: string, sourcePath?: string) =>
     ipcRenderer.invoke('create-track-version', trackId, label, sourcePath),
+  exportAudioWithEffects: (payload: Record<string, unknown>) =>
+    ipcRenderer.invoke('export-audio-with-effects', payload),
   getVersionAudio: (versionId: number, versionType: string) =>
     ipcRenderer.invoke('get-version-audio', versionId, versionType),
   saveCompareSession: (data: Record<string, unknown>) =>

@@ -2,6 +2,7 @@ import { app, BrowserWindow, protocol, net, ipcMain } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import http from 'http'
+import bcrypt from 'bcryptjs'
 import { prisma } from './db/client'
 import { registerProjectHandlers } from './ipc/project.ipc'
 import { registerImportHandlers } from './ipc/import.ipc'
@@ -15,6 +16,7 @@ import { registerStemHandlers } from './ipc/stem.ipc'
 import { registerAudioAnalysisHandlers } from './ipc/audio-analysis.ipc'
 import { registerVersionHandlers } from './ipc/version.ipc'
 import { registerBackupHandlers } from './ipc/backup.ipc'
+import { registerExportHandlers } from './ipc/export.ipc'
 import { registerChecklistHandlers } from './ipc/checklist.ipc'
 import { registerOrganizeHandlers } from './ipc/organize.ipc'
 import { registerMetadataHandlers } from './ipc/metadata.ipc'
@@ -237,7 +239,6 @@ function createMediaServer() {
               res.end('Invalid token')
               return
             }
-            const bcrypt = require('bcryptjs')
             const hashedPassword = await bcrypt.hash(newPassword, 10)
             await prisma.userProfile.update({
               where: { id: user.id },
@@ -478,6 +479,7 @@ app.whenReady().then(async () => {
     registerNotificationHandlers()
     registerVersionHandlers()
     registerBackupHandlers()
+    registerExportHandlers()
     registerChecklistHandlers()
     registerOrganizeHandlers()
     registerMetadataHandlers()

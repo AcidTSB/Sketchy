@@ -241,6 +241,21 @@ export function registerTrackHandlers() {
     }
   })
 
+  // Update file version label
+  ipcMain.handle('update-file-version-label', async (_event, versionId: number, label: string) => {
+    try {
+      const version = await prisma.fileVersion.update({
+        where: { id: versionId },
+        data: { label },
+      })
+      log.info({ versionId, label }, 'File version label updated')
+      return { success: true, data: version }
+    } catch (error) {
+      log.error({ error, versionId, label }, 'Failed to update file version label')
+      return { success: false, error: 'Failed to update file version label' }
+    }
+  })
+
   // Delete file version
   ipcMain.handle('delete-file-version', async (_event, id: number) => {
     try {
@@ -276,6 +291,47 @@ export function registerTrackHandlers() {
             latestVersionId: null,
           },
         })
+      }
+
+      // Delete physical files before deleting database record
+      try {
+        // Delete the stored file if it exists
+        if (version.storedPath) {
+          const fileExists = await fs.pathExists(version.storedPath)
+          if (fileExists) {
+            await fs.remove(version.storedPath)
+            log.info({ path: version.storedPath }, 'Deleted version file')
+          }
+        }
+
+        // Also delete the original path if different from stored path
+        if (version.originalPath && version.originalPath !== version.storedPath) {
+          const originalExists = await fs.pathExists(version.originalPath)
+          if (originalExists) {
+            await fs.remove(version.originalPath)
+            log.info({ path: version.originalPath }, 'Deleted original version file')
+          }
+        }
+
+        // Try to delete the version folder if it's empty
+        // Version files are typically stored in: .../versions/{trackId}/{timestamp}/
+        const versionFolder = path.dirname(version.storedPath || version.originalPath || '')
+        if (versionFolder) {
+          const folderExists = await fs.pathExists(versionFolder)
+          if (folderExists) {
+            const folderContents = await fs.readdir(versionFolder)
+            if (folderContents.length === 0) {
+              await fs.remove(versionFolder)
+              log.info({ path: versionFolder }, 'Deleted empty version folder')
+            }
+          }
+        }
+      } catch (fileError) {
+        // Log error but continue with database deletion
+        log.warn(
+          { error: fileError, versionId: id },
+          'Failed to delete version files, continuing with database deletion'
+        )
       }
 
       await prisma.fileVersion.delete({
